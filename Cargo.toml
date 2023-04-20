@@ -1,0 +1,9 @@
+[package]
+name = "crane"
+version = "0.1.0"
+authors = ["jianliangw1@gmail.com"]
+edition = "2021"
+
+[dependencies]
+clap = "2.33.0"
+pyo3 = "0.15"
