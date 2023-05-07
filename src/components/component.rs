@@ -1,11 +1,11 @@
 pub trait Component {
+    fn new(name: &String, path: &String) -> Self;
     fn sync(&self);
-    fn get_attrs(&self) -> &Attributes;
+    fn info(&self) -> &ComponentInfo;
 }
 
 #[derive(Debug)]
-pub struct Attributes {
+pub struct ComponentInfo {
     pub path: String,
-    pub deps_file: String,
-    pub url: String,
+    pub name: String,
 }

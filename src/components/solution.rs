@@ -1,16 +1,25 @@
-use crate::components::component::{Attributes, Component};
+use crate::components::component::{Component, ComponentInfo};
 
 #[derive(Debug)]
 pub struct Solution {
-    pub comp_attrs: Attributes,
+    pub info: ComponentInfo,
 }
 
 impl Component for Solution {
+    fn new(name: &String, path: &String) -> Self {
+        Solution {
+            info: ComponentInfo {
+                name: name.to_string(),
+                path: path.to_string(),
+            },
+        }
+    }
+
     fn sync(&self) {
         println!("sync");
     }
 
-    fn get_attrs(&self) -> &Attributes {
-        &self.comp_attrs
+    fn info(&self) -> &ComponentInfo {
+        &self.info
     }
 }
