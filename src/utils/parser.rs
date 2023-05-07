@@ -4,11 +4,8 @@ use std::path::PathBuf;
 
 use crate::components::component::Component;
 
-// load the python format file and parse components for it
-pub fn parse_components<T: Component + std::fmt::Debug>(
-    config_file: &PathBuf,
-    var_name: &str,
-) -> Vec<T> {
+// load the python format file .crane and parse the dict "solutions" in it
+pub fn parse_components<T: Component + std::fmt::Debug>(config_file: &PathBuf, var_name: &str) -> Vec<T> {
     pyo3::prepare_freethreaded_python();
     // evaluate the python file and return the dict "solutions"
     Python::with_gil(|py| {
@@ -31,8 +28,13 @@ pub fn parse_components<T: Component + std::fmt::Debug>(
                 .unwrap()
                 .extract::<String>()
                 .unwrap();
+            let source_stamp = component
+                .get_item("src")
+                .unwrap()
+                .extract::<String>()
+                .unwrap();
 
-            let s = T::new(&name, &path);
+            let s = T::new(&name, &path, &source_stamp);
             result.push(s);
         }
 

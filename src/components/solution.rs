@@ -6,12 +6,13 @@ pub struct Solution {
 }
 
 impl Component for Solution {
-    fn new(name: &String, path: &String) -> Self {
+    fn new(name: &String, path: &String, source_stamp: &String) -> Self {
         Solution {
-            info: ComponentInfo {
-                name: name.to_string(),
-                path: path.to_string(),
-            },
+            info: ComponentInfo::new( 
+                name,
+                path,
+                source_stamp,
+            ),
         }
     }
 
