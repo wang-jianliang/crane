@@ -1,5 +1,12 @@
+use std::collections::HashMap;
+
 pub trait Component {
-    fn new(name: &String, path: &String, source: &String) -> Self;
+    fn new(
+        name: &String,
+        path: &String,
+        source: &String,
+        extra_attrs: HashMap<String, String>,
+    ) -> Self;
     fn sync(&self);
     fn info(&self) -> &ComponentInfo;
 }
@@ -23,7 +30,6 @@ pub struct ComponentInfo {
 
 impl ComponentInfo {
     pub fn new(name: &String, path: &String, source_stamp: &String) -> Self {
-
         let parts: Vec<&str> = source_stamp.splitn(2, ":").collect();
         let source_type = parts[0];
         let source = parts[1].split('@').next().unwrap();
