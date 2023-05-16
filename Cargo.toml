@@ -5,6 +5,7 @@ authors = ["jianliangw1@gmail.com"]
 edition = "2021"
 
 [dependencies]
+crane_derive = { path = "crane_derive"}
 clap = { version = "4.1.6", features = ["derive"] }
 pyo3 = "0.15"
 log = "0.4.0"

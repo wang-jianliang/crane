@@ -3,7 +3,6 @@ use exitcode;
 use std::path::PathBuf;
 use std::process;
 
-use crate::components::solution::Solution;
 use crate::constants::CRANE_FILE;
 use crate::utils::{git_utils, parser};
 
@@ -22,7 +21,10 @@ fn run_sync(target_dir: &PathBuf) {
 
     let mut full_path: PathBuf = target_dir.clone();
     full_path.push(CRANE_FILE);
-    let solutions: Vec<Solution> = parser::parse_components(&full_path, "solutions");
+    let solutions = parser::parse_components(&full_path, "solutions");
+    for solution in solutions.iter() {
+        solution.sync();
+    }
 }
 
 pub fn run(args: &SyncArgs) {

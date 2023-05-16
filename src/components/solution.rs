@@ -1,34 +1,20 @@
-use crate::components::component::{Component, ComponentInfo};
-use std::collections::HashMap;
+use crate::components::component::{AttrParser, Component};
+use crane_derive::AttrParser;
+use pyo3::prelude::*;
+use std::path::PathBuf;
 
-#[derive(Debug)]
+use crate::utils::parser;
+
+#[derive(Debug, AttrParser)]
 pub struct Solution {
-    info: ComponentInfo,
-    deps_file: Option<String>,
+    deps_file: Option<PathBuf>,
 }
 
 impl Component for Solution {
-    fn new(
-        name: &String,
-        path: &String,
-        source_stamp: &String,
-        extra_attrs: HashMap<String, String>,
-    ) -> Self {
-        let deps_file = match extra_attrs.get(&String::from("deps_file")) {
-            Some(attr) => Some(attr.clone()),
-            None => None,
-        };
-        Solution {
-            info: ComponentInfo::new(name, path, source_stamp),
-            deps_file: deps_file,
-        }
-    }
-
     fn sync(&self) {
+        if let Some(deps_file) = &self.deps_file {
+            let deps: Vec<Box<dyn Component>> = parser::parse_components(&deps_file, "deps");
+        }
         println!("sync");
-    }
-
-    fn info(&self) -> &ComponentInfo {
-        &self.info
     }
 }

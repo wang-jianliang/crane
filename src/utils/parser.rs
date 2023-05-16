@@ -1,19 +1,17 @@
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
-use std::collections::HashMap;
+use pyo3::types::PyList;
 use std::path::PathBuf;
 
-use crate::components::component::Component;
+use crate::components::component::{AttrParser, Component};
+use crate::components::git_dependency::GitDependency;
+use crate::components::solution::Solution;
 
 fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>())
 }
 
 // load the python format file .crane and parse the dict "solutions" in it
-pub fn parse_components<T: Component + std::fmt::Debug>(
-    config_file: &PathBuf,
-    var_name: &str,
-) -> Vec<T> {
+pub fn parse_components(config_file: &PathBuf, var_name: &str) -> Vec<Box<dyn Component>> {
     pyo3::prepare_freethreaded_python();
     // evaluate the python file and return the dict "solutions"
     Python::with_gil(|py| {
@@ -26,37 +24,25 @@ pub fn parse_components<T: Component + std::fmt::Debug>(
         let mut result = vec![];
 
         for component in components.iter() {
-            let name = component
-                .get_item("name")
-                .unwrap()
-                .extract::<String>()
-                .unwrap();
-            component.del_item("name").unwrap();
-            let path = component
-                .get_item("path")
-                .unwrap()
-                .extract::<String>()
-                .unwrap();
-            component.del_item("path").unwrap();
-            let source_stamp = component
-                .get_item("src")
-                .unwrap()
-                .extract::<String>()
-                .unwrap();
-            component.del_item("src").unwrap();
+            let source_type = match var_name {
+                "solutions" => String::from("solution"),
+                _ => component
+                    .get_item("type")
+                    .unwrap()
+                    .extract::<String>()
+                    .unwrap(),
+            };
 
-            // collect other attributes
-            let mut attrs = HashMap::new();
-            let dict: &PyDict = component.downcast().unwrap();
-            for (k, v) in dict {
-                let key = k.extract::<String>().unwrap();
-                let value = v.extract::<String>().unwrap();
-                attrs.insert(key, value);
-            }
-            print_type_of(component);
+            let c: Box<dyn Component> = match &source_type as &str {
+                "solution" => Box::new(Solution::from_py(component)),
+                "git" => Box::new(GitDependency::from_py(component)),
+                unknown => {
+                    log::warn!("Unsupported type {}", unknown);
+                    continue;
+                }
+            };
 
-            let s = T::new(&name, &path, &source_stamp, attrs);
-            result.push(s);
+            result.push(c);
         }
 
         log::debug!("Loaded components:\n{:#?}", result);
