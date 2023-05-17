@@ -6,10 +6,6 @@ use crate::components::component::{AttrParser, Component};
 use crate::components::git_dependency::GitDependency;
 use crate::components::solution::Solution;
 
-fn print_type_of<T>(_: &T) {
-    println!("{}", std::any::type_name::<T>())
-}
-
 // load the python format file .crane and parse the dict "solutions" in it
 pub fn parse_components(config_file: &PathBuf, var_name: &str) -> Vec<Box<dyn Component>> {
     pyo3::prepare_freethreaded_python();
