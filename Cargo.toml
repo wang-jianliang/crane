@@ -11,3 +11,9 @@ pyo3 = "0.15"
 log = "0.4.0"
 env_logger = "0.9.0"
 exitcode = "1.1.2"
+futures = "0.3"
+async-trait = "0.1.68"
+
+[dependencies.async-std]
+version = "1.6"
+features = ["attributes"]

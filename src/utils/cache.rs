@@ -6,19 +6,11 @@ use std::path::PathBuf;
 pub fn ensure_cache_dir() -> PathBuf {
     let cache_dir = PathBuf::from(env::var("HOME").unwrap()).join(CACHE_DIR);
     if !cache_dir.exists() {
-        fs::create_dir_all(&cache_dir);
+        fs::create_dir_all(&cache_dir).unwrap();
     } else if !cache_dir.is_dir() {
         panic!("Path {:?} exists but is not a directory", cache_dir);
     }
     cache_dir
-}
-
-fn remove_path_all(path: &PathBuf) {
-    if path.is_dir() {
-        fs::remove_dir_all(path).unwrap();
-    } else {
-        fs::remove_file(path).unwrap();
-    }
 }
 
 #[cfg(test)]

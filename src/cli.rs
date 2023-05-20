@@ -14,8 +14,8 @@ pub enum Command {
     Sync(sync::SyncArgs),
 }
 
-pub fn run_command(cmd: &Command) {
+pub async fn run_command(cmd: &Command) {
     match cmd {
-        Command::Sync(args) => sync::run(args),
+        Command::Sync(args) => sync::run(args).await,
     }
 }
