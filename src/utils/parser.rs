@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyList;
 use std::path::PathBuf;
 
-use crate::components::component::{AttrParser, Component};
+use crate::components::component::{Component, FromPyObject};
 use crate::components::git_dependency::GitDependency;
 use crate::components::solution::Solution;
 

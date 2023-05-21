@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 
 use crate::errors::Error;
 
-pub trait AttrParser {
+pub trait FromPyObject {
     fn from_py(py_obj: &PyAny) -> Self;
 }
 

@@ -1,13 +1,13 @@
-use crate::components::component::{AttrParser, Component};
+use crate::components::component::{Component, FromPyObject};
 use crate::errors::Error;
 use async_trait::async_trait;
-use crane_derive::AttrParser;
+use crane_derive::FromPyObject;
 use pyo3::prelude::*;
 use std::path::PathBuf;
 
 use crate::utils::parser;
 
-#[derive(Debug, AttrParser)]
+#[derive(Debug, FromPyObject)]
 pub struct Solution {
     deps_file: Option<PathBuf>,
 }

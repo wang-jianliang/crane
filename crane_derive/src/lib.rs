@@ -3,7 +3,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput};
 
-#[proc_macro_derive(AttrParser)]
+#[proc_macro_derive(FromPyObject)]
 pub fn component_derive(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).unwrap();
     let struct_name = ast.ident;
@@ -32,7 +32,7 @@ pub fn component_derive(input: TokenStream) -> TokenStream {
     });
 
     let parse_from_py_impl = quote! {
-        impl AttrParser for #struct_name {
+        impl FromPyObject for #struct_name {
             fn from_py(py_obj: &PyAny) -> Self{
                 #(#fields_extract)*
                 #struct_name {
