@@ -8,6 +8,6 @@ pub trait FromPyObject {
 }
 
 #[async_trait]
-pub trait Component: std::fmt::Debug {
+pub trait Component: std::fmt::Debug + Send {
     async fn sync(&self) -> Result<(), Error>;
 }
