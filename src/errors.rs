@@ -29,3 +29,12 @@ impl From<Box<dyn error::Error>> for Error {
         }
     }
 }
+
+// Implement the From trait to convert a PyErr to custom Error
+impl From<PyErr> for Error {
+    fn from(error: PyErr) -> Self {
+        Error {
+            message: format!("Python error: {}", error),
+        }
+    }
+}

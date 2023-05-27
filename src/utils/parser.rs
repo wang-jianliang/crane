@@ -40,18 +40,8 @@ pub fn parse_components(
             };
 
             let result: Box<dyn Component> = match source_type.as_str() {
-                "solution" => {
-                    let solution = Solution::from_py(component)?.map_err(|err| Error {
-                        message: format!("Failed to parse solution: {}", err),
-                    })?;
-                    Box::new(solution)
-                }
-                "git" => {
-                    let git = GitDependency::from_py(component).map_err(|err| Error {
-                        message: format!("Failed to parse git dependency: {}", err),
-                    })?;
-                    Box::new(git)
-                }
+                "solution" => Box::new(Solution::from_py(component)?),
+                "git" => Box::new(GitDependency::from_py(component)?),
                 unknown => {
                     log::warn!("Unsupported type {}", unknown);
                     continue;
