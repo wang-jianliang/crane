@@ -6,6 +6,7 @@ use pyo3::prelude::*;
 
 #[derive(Debug, FromPyObject)]
 pub struct GitDependency {
+    #[from_py]
     paths: Option<Vec<String>>,
 }
 

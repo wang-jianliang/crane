@@ -10,9 +10,13 @@ use crate::utils::parser;
 
 #[derive(Debug, FromPyObject)]
 pub struct Solution {
+    #[from_py]
     name: String,
+    #[from_py]
     src: String,
+    #[from_py]
     target: Option<PathBuf>,
+    #[from_py]
     deps_file: Option<PathBuf>,
 }
 

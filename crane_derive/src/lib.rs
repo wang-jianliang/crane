@@ -3,7 +3,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput};
 
-#[proc_macro_derive(FromPyObject)]
+#[proc_macro_derive(FromPyObject, attributes(from_py))]
 pub fn component_derive(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(input).unwrap();
     let struct_name = ast.ident;
@@ -19,23 +19,29 @@ pub fn component_derive(input: TokenStream) -> TokenStream {
         }
     });
 
-    let fields_extract = fields.iter().map(|field| {
-        let field_name = &field.ident;
-        let field_type = &field.ty;
-        quote! {
-            let #field_name = py_obj
-                .get_item(stringify!(#field_name))?
-                .extract::<#field_type>()?;
-        }
-    });
+    let fields_extract: Vec<_> = fields
+        .iter()
+        .filter_map(|field| {
+            if field.attrs.iter().any(|attr| attr.path.is_ident("from_py")) {
+                let field_name = &field.ident;
+                let field_type = &field.ty;
+                Some(quote! {
+                    obj.#field_name = py_obj
+                        .get_item(stringify!(#field_name))?
+                        .extract::<#field_type>()?;
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
 
     let parse_from_py_impl = quote! {
         impl FromPyObject for #struct_name {
             fn from_py(py_obj: &PyAny) -> Result<Self, PyErr> {
+                let mut obj = #struct_name::default();
                 #(#fields_extract)*
-                Ok(#struct_name {
-                    #(#args_assign),*
-                })
+                Ok(obj)
             }
         }
     };
