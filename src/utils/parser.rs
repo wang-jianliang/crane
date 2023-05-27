@@ -25,11 +25,11 @@ pub fn parse_components(
                 }
             };
 
-        let components: &PyList = module.getattr(var_name).unwrap().downcast().unwrap();
+        let py_components: &PyList = module.getattr(var_name).unwrap().downcast().unwrap();
 
-        let mut result = vec![];
+        let mut components = vec![];
 
-        for component in components.iter() {
+        for component in py_components.iter() {
             let source_type = match var_name {
                 "solutions" => String::from("solution"),
                 _ => component
@@ -39,19 +39,29 @@ pub fn parse_components(
                     .unwrap(),
             };
 
-            let c: Box<dyn Component> = match &source_type as &str {
-                "solution" => Box::new(Solution::from_py(component)),
-                "git" => Box::new(GitDependency::from_py(component)),
+            let result: Box<dyn Component> = match source_type.as_str() {
+                "solution" => {
+                    let solution = Solution::from_py(component)?.map_err(|err| Error {
+                        message: format!("Failed to parse solution: {}", err),
+                    })?;
+                    Box::new(solution)
+                }
+                "git" => {
+                    let git = GitDependency::from_py(component).map_err(|err| Error {
+                        message: format!("Failed to parse git dependency: {}", err),
+                    })?;
+                    Box::new(git)
+                }
                 unknown => {
                     log::warn!("Unsupported type {}", unknown);
                     continue;
                 }
             };
 
-            result.push(c);
+            components.push(result);
         }
 
-        log::debug!("Loaded components:\n{:#?}", result);
-        Ok(result)
+        log::debug!("Loaded components:\n{:#?}", components);
+        Ok(components)
     })
 }

@@ -24,20 +24,18 @@ pub fn component_derive(input: TokenStream) -> TokenStream {
         let field_type = &field.ty;
         quote! {
             let #field_name = py_obj
-                .get_item(stringify!(#field_name))
-                .unwrap()
-                .extract::<#field_type>()
-                .unwrap();
+                .get_item(stringify!(#field_name))?
+                .extract::<#field_type>()?;
         }
     });
 
     let parse_from_py_impl = quote! {
         impl FromPyObject for #struct_name {
-            fn from_py(py_obj: &PyAny) -> Self{
+            fn from_py(py_obj: &PyAny) -> Result<Self, PyErr> {
                 #(#fields_extract)*
-                #struct_name {
+                Ok(#struct_name {
                     #(#args_assign),*
-                }
+                })
             }
         }
     };

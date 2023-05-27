@@ -9,6 +9,12 @@ pub struct GitDependency {
     paths: Option<Vec<String>>,
 }
 
+impl Default for GitDependency {
+    fn default() -> Self {
+        GitDependency { paths: None }
+    }
+}
+
 #[async_trait]
 impl Component for GitDependency {
     async fn sync(&self) -> Result<(), Error> {

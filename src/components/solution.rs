@@ -12,8 +12,19 @@ use crate::utils::parser;
 pub struct Solution {
     name: String,
     src: String,
-    path: Option<PathBuf>,
+    target: Option<PathBuf>,
     deps_file: Option<PathBuf>,
+}
+
+impl Default for Solution {
+    fn default() -> Self {
+        Solution {
+            name: String::from(""),
+            src: String::from(""),
+            target: None,
+            deps_file: None,
+        }
+    }
 }
 
 #[async_trait]

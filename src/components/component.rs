@@ -4,7 +4,9 @@ use pyo3::prelude::*;
 use crate::errors::Error;
 
 pub trait FromPyObject {
-    fn from_py(py_obj: &PyAny) -> Self;
+    fn from_py(py_obj: &PyAny) -> Result<Self, PyErr>
+    where
+        Self: Sized;
 }
 
 #[async_trait]
