@@ -1,9 +1,16 @@
 use std::env;
+use std::process;
 
 use clap::Parser;
 use crane::cli::run_command;
 use crane::cli::Cli;
 use crane::constants::DEFAULT_LOG_LEVEL;
+use crane::errors::Error;
+
+fn exit_with_error(err: &Error) {
+    println!("{}", err);
+    process::exit(1);
+}
 
 #[async_std::main]
 async fn main() {
@@ -15,7 +22,13 @@ async fn main() {
     let cli = Cli::parse();
     match &cli.command {
         Some(cmd) => {
-            run_command(cmd).await;
+            let result = run_command(cmd).await;
+            match &result {
+                Ok(_) => {}
+                Err(err) => {
+                    exit_with_error(&err);
+                }
+            }
         }
         None => {
             panic!("No command provided")

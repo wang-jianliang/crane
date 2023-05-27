@@ -20,7 +20,7 @@ pub struct Solution {
 impl Component for Solution {
     async fn sync(&self) -> Result<(), Error> {
         if let Some(deps_file) = &self.deps_file {
-            let deps = parser::parse_components(&deps_file, "deps");
+            let deps = parser::parse_components(&deps_file, "deps")?;
             let mut futures = Vec::new();
             // let futures = deps.into_iter().map(|d| d.sync());
             for dep in &deps {

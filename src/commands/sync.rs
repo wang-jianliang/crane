@@ -1,3 +1,4 @@
+use crate::errors::Error;
 use clap::Args;
 use exitcode;
 use futures::future::try_join_all;
@@ -12,7 +13,7 @@ pub struct SyncArgs {
     pub dir: Option<PathBuf>,
 }
 
-async fn run_sync(target_dir: &PathBuf) {
+async fn run_sync(target_dir: &PathBuf) -> Result<(), Error> {
     println!("Sync dependencies in {:?}", target_dir);
     // Check if current directory is in a git repository
     if !git_utils::is_git_repo(Some(target_dir)) {
@@ -22,23 +23,26 @@ async fn run_sync(target_dir: &PathBuf) {
 
     let mut full_path: PathBuf = target_dir.clone();
     full_path.push(CRANE_FILE);
-    let solutions = parser::parse_components(&full_path, "solutions");
+    let solutions = parser::parse_components(&full_path, "solutions")?;
 
     let mut futures = Vec::new();
     for solution in solutions.iter() {
         futures.push(solution.sync());
     }
 
-    try_join_all(futures).await;
+    match try_join_all(futures).await {
+        Ok(_) => Ok(()),
+        Err(err) => Err(err),
+    }
 }
 
-pub async fn run(args: &SyncArgs) {
+pub async fn run(args: &SyncArgs) -> Result<(), Error> {
     println!("{:?}", args);
 
     if let Some(target_dir) = &args.dir {
-        run_sync(target_dir).await;
+        run_sync(target_dir).await
     } else {
         println!("Syncing current directory");
-        run_sync(&PathBuf::from(".")).await;
+        run_sync(&PathBuf::from(".")).await
     }
 }

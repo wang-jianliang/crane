@@ -5,15 +5,25 @@ use std::path::PathBuf;
 use crate::components::component::{Component, FromPyObject};
 use crate::components::git_dependency::GitDependency;
 use crate::components::solution::Solution;
+use crate::errors::Error;
 
 // load the python format file .crane and parse the dict "solutions" in it
-pub fn parse_components(config_file: &PathBuf, var_name: &str) -> Vec<Box<dyn Component>> {
+pub fn parse_components(
+    config_file: &PathBuf,
+    var_name: &str,
+) -> Result<Vec<Box<dyn Component>>, Error> {
     pyo3::prepare_freethreaded_python();
     // evaluate the python file and return the dict "solutions"
     Python::with_gil(|py| {
         let module =
-            PyModule::from_code(py, &std::fs::read_to_string(config_file).unwrap(), "", "")
-                .unwrap();
+            match PyModule::from_code(py, &std::fs::read_to_string(config_file).unwrap(), "", "") {
+                Ok(m) => m,
+                Err(err) => {
+                    return Err(Error {
+                        message: format!("{}", err),
+                    });
+                }
+            };
 
         let components: &PyList = module.getattr(var_name).unwrap().downcast().unwrap();
 
@@ -42,6 +52,6 @@ pub fn parse_components(config_file: &PathBuf, var_name: &str) -> Vec<Box<dyn Co
         }
 
         log::debug!("Loaded components:\n{:#?}", result);
-        result
+        Ok(result)
     })
 }
