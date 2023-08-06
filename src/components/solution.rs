@@ -1,8 +1,7 @@
-use crate::components::component::{Component, FromPyObject};
+use crate::components::component::{Component, ComponentImpl, FromPyObject};
 use crate::errors::Error;
-use async_trait::async_trait;
 use crane_derive::FromPyObject;
-use futures::future::try_join_all;
+// use futures::future::try_join_all;
 use pyo3::prelude::*;
 use std::path::PathBuf;
 
@@ -15,7 +14,7 @@ pub struct Solution {
     #[from_py]
     src: String,
     #[from_py]
-    target: Option<PathBuf>,
+    path: Option<PathBuf>,
     #[from_py]
     deps_file: Option<PathBuf>,
 }
@@ -25,23 +24,16 @@ impl Default for Solution {
         Solution {
             name: String::from(""),
             src: String::from(""),
-            target: None,
+            path: None,
             deps_file: None,
         }
     }
 }
 
-#[async_trait]
-impl Component for Solution {
-    async fn sync(&self) -> Result<(), Error> {
+impl ComponentImpl for Solution {
+    fn sync(&self, comp: &Component) -> Result<(), Error> {
         if let Some(deps_file) = &self.deps_file {
             let deps = parser::parse_components(&deps_file, "deps")?;
-            let mut futures = Vec::new();
-            // let futures = deps.into_iter().map(|d| d.sync());
-            for dep in &deps {
-                futures.push(dep.sync());
-            }
-            let _ = try_join_all(futures).await;
         }
         println!("Solution {} is done", self.name);
         Ok(())

@@ -1,6 +1,5 @@
-use crate::components::component::{Component, FromPyObject};
+use crate::components::component::{Component, ComponentImpl, FromPyObject};
 use crate::errors::Error;
-use async_trait::async_trait;
 use crane_derive::FromPyObject;
 use pyo3::prelude::*;
 
@@ -16,10 +15,10 @@ impl Default for GitDependency {
     }
 }
 
-#[async_trait]
-impl Component for GitDependency {
-    async fn sync(&self) -> Result<(), Error> {
-        println!("sync git dependency");
+impl ComponentImpl for GitDependency {
+    fn sync(&self, comp: &Component) -> Result<(), Error> {
+        println!("GitDependency {} is done", comp.name);
         Ok(())
     }
 }
+

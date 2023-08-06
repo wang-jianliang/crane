@@ -7,10 +7,17 @@ use std::process;
 
 use crate::constants::CRANE_FILE;
 use crate::utils::{git_utils, parser};
+use crate::components::component::{ComponentArena, ComponentID};
 
 #[derive(Args, Debug)]
 pub struct SyncArgs {
     pub dir: Option<PathBuf>,
+}
+
+async fn sync_component(id: ComponentID) -> Result<(), Error> {
+    let arena = ComponentArena::instance().lock().unwrap();
+    let component = arena.get(id).unwrap();
+    return component.sync()
 }
 
 async fn run_sync(target_dir: &PathBuf) -> Result<(), Error> {
@@ -26,8 +33,8 @@ async fn run_sync(target_dir: &PathBuf) -> Result<(), Error> {
     let solutions = parser::parse_components(&full_path, "solutions")?;
 
     let mut futures = Vec::new();
-    for solution in solutions.iter() {
-        futures.push(solution.sync());
+    for solution_id in solutions.iter() {
+        futures.push(sync_component(*solution_id));
     }
 
     match try_join_all(futures).await {

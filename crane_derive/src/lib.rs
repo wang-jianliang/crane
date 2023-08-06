@@ -12,13 +12,6 @@ pub fn component_derive(input: TokenStream) -> TokenStream {
         _ => panic!("This macro can only be used for struct"),
     };
 
-    let args_assign = fields.iter().map(|field| {
-        let field_name = &field.ident;
-        quote! {
-            #field_name: #field_name
-        }
-    });
-
     let fields_extract: Vec<_> = fields
         .iter()
         .filter_map(|field| {
