@@ -1,11 +1,11 @@
 use crate::errors::Error;
 use clap::Args;
 use exitcode;
-use futures::future::try_join_all;
+
 use std::path::PathBuf;
 use std::process;
 
-use crate::components::component::{walk_components, ComponentArena, ComponentID};
+use crate::components::component::{walk_components};
 use crate::constants::CRANE_FILE;
 use crate::utils::{git_utils, parser};
 use crate::visitors::component_sync_visitor::ComponentSyncVisitor;

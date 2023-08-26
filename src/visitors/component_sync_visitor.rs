@@ -25,7 +25,7 @@ impl ComponentVisitor for ComponentSyncVisitor {
         }
 
         if let Some(deps_file) = &deps_file {
-            let deps = parser::parse_components(&deps_file, "deps")?;
+            let _deps = parser::parse_components(&deps_file, "deps")?;
             println!("Solution {} is done", solution_name);
         }
         Ok(())

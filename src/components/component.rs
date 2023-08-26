@@ -1,19 +1,19 @@
 use std::any::Any;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{VecDeque};
 use std::time::Duration;
 
 use crate::components::git_dependency::GitDependency;
 use crate::components::solution::Solution;
 use crate::errors::Error;
 use crate::visitors::{
-    component_sync_visitor::ComponentSyncVisitor, component_visitor::ComponentVisitor,
+    component_visitor::ComponentVisitor,
 };
 use futures::future::try_join_all;
 use lazy_static::lazy_static;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 use pyo3::prelude::*;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+
+
 
 pub type ComponentID = usize;
 

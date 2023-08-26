@@ -1,10 +1,10 @@
 use std::any::Any;
 
-use crate::components::component::{Component, ComponentImpl, FromPyObject};
-use crate::errors::Error;
+use crate::components::component::{ComponentImpl, FromPyObject};
+
 use crane_derive::FromPyObject;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+
 
 #[derive(Debug, FromPyObject)]
 pub struct GitDependency {
