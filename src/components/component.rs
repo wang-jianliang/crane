@@ -1,53 +1,67 @@
-use pyo3::prelude::*;
-use std::collections::HashMap;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::any::Any;
+use std::collections::{HashMap, VecDeque};
+use std::time::Duration;
+
 use crate::components::git_dependency::GitDependency;
 use crate::components::solution::Solution;
-use lazy_static::lazy_static;
-
 use crate::errors::Error;
+use crate::visitors::{
+    component_sync_visitor::ComponentSyncVisitor, component_visitor::ComponentVisitor,
+};
+use futures::future::try_join_all;
+use lazy_static::lazy_static;
+use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
+use pyo3::prelude::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 pub type ComponentID = usize;
 
 #[derive(Debug)]
 pub struct ComponentArena {
-    components: HashMap<ComponentID, Component>,
-    next_id: AtomicUsize,
+    components: Mutex<Vec<Component>>,
 }
 
 impl ComponentArena {
     pub fn new() -> Self {
         ComponentArena {
-            components: HashMap::new(),
-            next_id: 0.into(),
+            components: Mutex::new(Vec::<Component>::new()),
         }
     }
 
-    pub fn instance() -> &'static Mutex<Self> {
+    pub fn instance() -> &'static Self {
         lazy_static! {
-            static ref INSTANCE: Mutex<ComponentArena> = Mutex::new(ComponentArena::new());
+            static ref INSTANCE: ComponentArena = ComponentArena::new();
         }
         &INSTANCE
     }
 
-    pub fn add(&mut self, component: Component) -> usize {
-        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        self.components.insert(id, component);
+    pub fn add(&self, component: Component) -> usize {
+        let mut lock = self
+            .components
+            .try_lock_for(Duration::from_secs(10))
+            .expect("Failed to lock components");
+        let id = lock.len();
+        lock.push(component);
         id
     }
 
-    pub fn get(&self, id: usize) -> Option<&Component> {
-        self.components.get(&id)
-    }
-
-    pub fn get_mut(&mut self, id: usize) -> Option<&mut Component> {
-        self.components.get_mut(&id)
+    pub fn get(&self, id: usize) -> Option<MappedMutexGuard<Component>> {
+        let lock = self
+            .components
+            .try_lock_for(Duration::from_secs(10))
+            .expect("Failed to lock components");
+        if id < lock.len() {
+            Some(MutexGuard::map(lock, |components| &mut components[id]))
+        } else {
+            None
+        }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ComponentType {
+    Unkonwn,
     Solution,
     GitDependency,
 }
@@ -63,72 +77,101 @@ pub struct Component {
     pub name: String,
     pub type_: ComponentType,
     parent_id: Option<usize>,
-    children_ids: Vec<usize>,
-    impl_: Box<dyn ComponentImpl>,
+    children: Vec<usize>,
+    pub impl_: Box<dyn ComponentImpl>,
 }
 
 impl Component {
     pub fn from_py(py_obj: &PyAny) -> Result<ComponentID, PyErr> {
-        
         let name = py_obj.get_item("name")?.extract::<String>()?;
-        let type_ = py_obj.get_item("type")?.extract::<String>()?;
-        let type_ = match type_.as_str() {
+        let type_str = py_obj.get_item("type")?.extract::<String>()?;
+        let type_ = match type_str.as_str() {
             "solution" => ComponentType::Solution,
-            "git_dependency" => ComponentType::GitDependency,
-            _ => return Err(pyo3::exceptions::PyTypeError::new_err("unknown component type")),
+            "git" => ComponentType::GitDependency,
+            _ => ComponentType::Unkonwn,
         };
         let impl_: Box<dyn ComponentImpl> = match type_ {
             ComponentType::Solution => Box::new(Solution::from_py(py_obj)?),
             ComponentType::GitDependency => Box::new(GitDependency::from_py(py_obj)?),
+            _ => {
+                return Err(pyo3::exceptions::PyTypeError::new_err(
+                    "unknown component type: ".to_owned() + &type_str,
+                ))
+            }
         };
 
         let comp = Component {
             name,
             type_,
             parent_id: None,
-            children_ids: Vec::new(),
+            children: Vec::new(),
             impl_,
         };
-        let id = ComponentArena::instance().lock().unwrap().add(comp);
+        println!("before lock");
+        let id = ComponentArena::instance().add(comp);
 
         Ok(id)
-    }
-
-    pub fn parent_id(&self) -> Option<usize> {
-        self.parent_id
     }
 
     pub fn set_parent_id(&mut self, parent_id: Option<usize>) {
         self.parent_id = parent_id;
     }
 
-    pub fn children_ids(&self) -> Vec<usize> {
-        self.children_ids.clone()
-    }
-
     pub fn add_child(&mut self, child_id: ComponentID) {
-        self.children_ids.push(child_id);
+        self.children.push(child_id);
     }
 
     pub fn remove_child(&mut self, child_id: ComponentID) {
-        self.children_ids.retain(|&id| id != child_id);
-    }
-
-    pub fn sync(&self) -> Result<(), Error> {
-        self.impl_.sync(self)
+        self.children.retain(|&id| id != child_id);
     }
 }
 
 pub trait ComponentImpl: std::fmt::Debug + Send {
-    fn sync(&self, comp: &Component) -> Result<(), Error>;
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-// #[async_trait]
-// pub trait Component: std::fmt::Debug + Send {
-//     async fn sync(&self) -> Result<(), Error>;
-//     fn name(&self) -> String;
-//     fn parent(&self) -> Option<Box<dyn Component>>;
-//     fn set_parent(&mut self, parent: Option<Box<dyn Component>>);
-//     fn children(&self) -> Vec<Box<dyn Component>>;
-//     fn add_child(&mut self, child: Box<dyn Component>);
-// }
+pub fn visit_component<V: ComponentVisitor>(id: ComponentID, visitor: V) -> Result<(), Error> {
+    let type_;
+    {
+        if let Some(comp) = ComponentArena::instance().get(id) {
+            type_ = comp.type_.clone();
+        } else {
+            return Err(Error {
+                message: String::from("unknown component id"),
+            });
+        }
+    }
+    match type_ {
+        ComponentType::Solution => visitor.visit_solution(id),
+        ComponentType::GitDependency => visitor.visit_git(id),
+        _ => Err(Error {
+            message: String::from("unknown component type"),
+        }),
+    }
+}
+
+pub async fn walk_components<V>(component_ids: Vec<ComponentID>, visitor: V) -> Result<(), Error>
+where
+    V: ComponentVisitor,
+{
+    let mut queue = VecDeque::new();
+
+    queue.extend(component_ids);
+
+    let arena = ComponentArena::instance();
+    let mut futures = Vec::new();
+    while let Some(comp_id) = queue.pop_front() {
+        let func = async move { visit_component(comp_id, visitor) };
+        futures.push(func);
+        let comp = arena.get(comp_id).unwrap();
+        for child_id in comp.children.iter() {
+            queue.push_back(*child_id);
+        }
+    }
+
+    match try_join_all(futures).await {
+        Ok(_) => Ok(()),
+        Err(err) => Err(err),
+    }
+}

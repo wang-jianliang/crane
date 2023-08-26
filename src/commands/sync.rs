@@ -5,19 +5,14 @@ use futures::future::try_join_all;
 use std::path::PathBuf;
 use std::process;
 
+use crate::components::component::{walk_components, ComponentArena, ComponentID};
 use crate::constants::CRANE_FILE;
 use crate::utils::{git_utils, parser};
-use crate::components::component::{ComponentArena, ComponentID};
+use crate::visitors::component_sync_visitor::ComponentSyncVisitor;
 
 #[derive(Args, Debug)]
 pub struct SyncArgs {
     pub dir: Option<PathBuf>,
-}
-
-async fn sync_component(id: ComponentID) -> Result<(), Error> {
-    let arena = ComponentArena::instance().lock().unwrap();
-    let component = arena.get(id).unwrap();
-    return component.sync()
 }
 
 async fn run_sync(target_dir: &PathBuf) -> Result<(), Error> {
@@ -32,15 +27,7 @@ async fn run_sync(target_dir: &PathBuf) -> Result<(), Error> {
     full_path.push(CRANE_FILE);
     let solutions = parser::parse_components(&full_path, "solutions")?;
 
-    let mut futures = Vec::new();
-    for solution_id in solutions.iter() {
-        futures.push(sync_component(*solution_id));
-    }
-
-    match try_join_all(futures).await {
-        Ok(_) => Ok(()),
-        Err(err) => Err(err),
-    }
+    walk_components(solutions, ComponentSyncVisitor::new()).await
 }
 
 pub async fn run(args: &SyncArgs) -> Result<(), Error> {

@@ -1,7 +1,10 @@
+use std::any::Any;
+
 use crate::components::component::{Component, ComponentImpl, FromPyObject};
 use crate::errors::Error;
 use crane_derive::FromPyObject;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 #[derive(Debug, FromPyObject)]
 pub struct GitDependency {
@@ -16,9 +19,12 @@ impl Default for GitDependency {
 }
 
 impl ComponentImpl for GitDependency {
-    fn sync(&self, comp: &Component) -> Result<(), Error> {
-        println!("GitDependency {} is done", comp.name);
-        Ok(())
+    fn as_any(&self) -> &dyn Any {
+        self
     }
-}
 
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+}
