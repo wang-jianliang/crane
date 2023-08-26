@@ -76,6 +76,7 @@ pub trait FromPyObject {
 pub struct Component {
     pub name: String,
     pub type_: ComponentType,
+    pub target_dir: String,
     parent_id: Option<usize>,
     children: Vec<usize>,
     pub impl_: Box<dyn ComponentImpl>,
@@ -84,30 +85,25 @@ pub struct Component {
 impl Component {
     pub fn from_py(py_obj: &PyAny) -> Result<ComponentID, PyErr> {
         let name = py_obj.get_item("name")?.extract::<String>()?;
-        let type_str = py_obj.get_item("type")?.extract::<String>()?;
-        let type_ = match type_str.as_str() {
-            "solution" => ComponentType::Solution,
-            "git" => ComponentType::GitDependency,
-            _ => ComponentType::Unkonwn,
-        };
-        let impl_: Box<dyn ComponentImpl> = match type_ {
-            ComponentType::Solution => Box::new(Solution::from_py(py_obj)?),
-            ComponentType::GitDependency => Box::new(GitDependency::from_py(py_obj)?),
+        let type_ = py_obj.get_item("type")?.extract::<String>()?;
+        let target_dir = py_obj.get_item("target_dir")?.extract::<String>()?;
+
+        let comp = match type_.as_str() {
+            "solution" => Component {
+                name, type_: ComponentType::Solution, target_dir,
+                parent_id: None, children: Vec::new(), impl_: Box::new(Solution::from_py(py_obj)?)
+            },
+            "git" => Component {
+                name, type_: ComponentType::GitDependency, target_dir,
+                parent_id: None, children: Vec::new(), impl_: Box::new(GitDependency::from_py(py_obj)?)
+            },
             _ => {
                 return Err(pyo3::exceptions::PyTypeError::new_err(
-                    "unknown component type: ".to_owned() + &type_str,
+                    "unknown component type: ".to_owned() + &type_,
                 ))
             }
         };
 
-        let comp = Component {
-            name,
-            type_,
-            parent_id: None,
-            children: Vec::new(),
-            impl_,
-        };
-        println!("before lock");
         let id = ComponentArena::instance().add(comp);
 
         Ok(id)
