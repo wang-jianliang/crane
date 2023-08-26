@@ -1,19 +1,15 @@
 use std::any::Any;
-use std::collections::{VecDeque};
+use std::collections::VecDeque;
 use std::time::Duration;
 
 use crate::components::git_dependency::GitDependency;
 use crate::components::solution::Solution;
 use crate::errors::Error;
-use crate::visitors::{
-    component_visitor::ComponentVisitor,
-};
+use crate::visitors::component_visitor::ComponentVisitor;
 use futures::future::try_join_all;
 use lazy_static::lazy_static;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 use pyo3::prelude::*;
-
-
 
 pub type ComponentID = usize;
 
@@ -90,12 +86,20 @@ impl Component {
 
         let comp = match type_.as_str() {
             "solution" => Component {
-                name, type_: ComponentType::Solution, target_dir,
-                parent_id: None, children: Vec::new(), impl_: Box::new(Solution::from_py(py_obj)?)
+                name,
+                type_: ComponentType::Solution,
+                target_dir,
+                parent_id: None,
+                children: Vec::new(),
+                impl_: Box::new(Solution::from_py(py_obj)?),
             },
             "git" => Component {
-                name, type_: ComponentType::GitDependency, target_dir,
-                parent_id: None, children: Vec::new(), impl_: Box::new(GitDependency::from_py(py_obj)?)
+                name,
+                type_: ComponentType::GitDependency,
+                target_dir,
+                parent_id: None,
+                children: Vec::new(),
+                impl_: Box::new(GitDependency::from_py(py_obj)?),
             },
             _ => {
                 return Err(pyo3::exceptions::PyTypeError::new_err(

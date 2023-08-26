@@ -8,8 +8,6 @@ use pyo3::prelude::*;
 
 use std::path::PathBuf;
 
-
-
 #[derive(Debug, FromPyObject)]
 pub struct Solution {
     #[from_py]

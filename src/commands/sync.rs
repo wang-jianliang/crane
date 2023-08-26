@@ -5,7 +5,7 @@ use exitcode;
 use std::path::PathBuf;
 use std::process;
 
-use crate::components::component::{walk_components};
+use crate::components::component::walk_components;
 use crate::constants::CRANE_FILE;
 use crate::utils::{git_utils, parser};
 use crate::visitors::component_sync_visitor::ComponentSyncVisitor;
