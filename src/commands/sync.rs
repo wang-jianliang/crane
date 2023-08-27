@@ -23,7 +23,7 @@ async fn run_sync(root_dir: &PathBuf) -> Result<(), Error> {
         process::exit(exitcode::DATAERR);
     }
 
-    let mut full_path: PathBuf = root_dir.join(PathBuf::from(CRANE_FILE));
+    let full_path: PathBuf = root_dir.join(PathBuf::from(CRANE_FILE));
     let deps = parser::parse_components(&full_path, "deps")?;
 
     walk_components(deps, ComponentSyncVisitor::new(), &root_dir).await?;

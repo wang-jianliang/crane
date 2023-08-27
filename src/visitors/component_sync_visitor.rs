@@ -21,7 +21,7 @@ impl ComponentVisitor for ComponentSyncVisitor {
     async fn visit_solution(&self, id: ComponentID, root_dir: &PathBuf) -> Result<(), Error> {
         let deps_file;
         let solution_name;
-        let mut target_dir;
+        let target_dir;
         {
             let comp = ComponentArena::instance().get(id).unwrap();
             let solution = comp.impl_.as_any().downcast_ref::<Solution>().unwrap();
@@ -39,7 +39,7 @@ impl ComponentVisitor for ComponentSyncVisitor {
         Ok(())
     }
 
-    async fn visit_git(&self, id: ComponentID, root_dir: &PathBuf) -> Result<(), Error> {
+    async fn visit_git(&self, id: ComponentID, _root_dir: &PathBuf) -> Result<(), Error> {
         let git = ComponentArena::instance().get(id).unwrap();
         log::debug!("visit git component: {:?}", git);
         Ok(())
