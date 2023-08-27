@@ -17,7 +17,7 @@ fn exit_with_message(msg: &str) {
     process::exit(1);
 }
 
-#[async_std::main]
+#[tokio::main]
 async fn main() {
     if env::var("RUST_LOG").is_err() {
         env::set_var("RUST_LOG", DEFAULT_LOG_LEVEL);
