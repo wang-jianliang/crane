@@ -12,6 +12,11 @@ fn exit_with_error(err: &Error) {
     process::exit(1);
 }
 
+fn exit_with_message(msg: &str) {
+    println!("{}", msg);
+    process::exit(1);
+}
+
 #[async_std::main]
 async fn main() {
     if env::var("RUST_LOG").is_err() {
@@ -31,7 +36,7 @@ async fn main() {
             }
         }
         None => {
-            panic!("No command provided")
+            exit_with_message("No command provided")
         }
     }
 }
