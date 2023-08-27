@@ -1,2 +1,2 @@
-pub mod component_sync_visitor;
+pub mod sync_visitor;
 pub mod component_visitor;

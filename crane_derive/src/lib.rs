@@ -1,7 +1,7 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput};
+use syn::{Data, DeriveInput, Type};
 
 #[proc_macro_derive(FromPyObject, attributes(from_py))]
 pub fn component_derive(input: TokenStream) -> TokenStream {
@@ -18,10 +18,21 @@ pub fn component_derive(input: TokenStream) -> TokenStream {
             if field.attrs.iter().any(|attr| attr.path.is_ident("from_py")) {
                 let field_name = &field.ident;
                 let field_type = &field.ty;
+                let err_branch = match field_type {
+                    Type::Path(type_path) if type_path.path.segments.last().map_or(false, |seg|seg.ident == "Option") => {
+                        quote! {
+                            Err(err) => None
+                        }
+                    },
+                    _ => quote! {
+                        Err(err) => return Err(err)
+                    }
+                };
                 Some(quote! {
-                    obj.#field_name = py_obj
-                        .get_item(stringify!(#field_name))?
-                        .extract::<#field_type>()?;
+                    obj.#field_name = match py_obj.get_item(stringify!(#field_name)) {
+                        Ok(item) => item.extract::<#field_type>()?,
+                        #err_branch,
+                    };
                 })
             } else {
                 None

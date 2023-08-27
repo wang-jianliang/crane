@@ -4,16 +4,31 @@ use crate::components::component::{ComponentImpl, FromPyObject};
 
 use crane_derive::FromPyObject;
 use pyo3::prelude::*;
+use std::path::PathBuf;
 
 #[derive(Debug, FromPyObject)]
 pub struct GitDependency {
     #[from_py]
     paths: Option<Vec<String>>,
+    #[from_py]
+    pub url: String,
+    #[from_py]
+    pub commit: Option<String>,
+    #[from_py]
+    pub branch: Option<String>,
+    #[from_py]
+    pub deps_file: Option<PathBuf>,
 }
 
 impl Default for GitDependency {
     fn default() -> Self {
-        GitDependency { paths: None }
+        GitDependency {
+            paths: None,
+            url: String::from(""),
+            commit: None,
+            branch: None,
+            deps_file: None,
+        }
     }
 }
 

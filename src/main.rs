@@ -4,6 +4,7 @@ use std::process;
 use clap::Parser;
 use crane::cli::run_command;
 use crane::cli::Cli;
+use crane::constants::CRANE_DEBUG;
 use crane::constants::DEFAULT_LOG_LEVEL;
 use crane::errors::Error;
 
@@ -31,12 +32,14 @@ async fn main() {
             match &result {
                 Ok(_) => {}
                 Err(err) => {
-                    exit_with_error(&err);
+                    if *CRANE_DEBUG {
+                        panic!("{}", err);
+                    } else {
+                        exit_with_error(&err);
+                    }
                 }
             }
         }
-        None => {
-            exit_with_message("No command provided")
-        }
+        None => exit_with_message("No command provided"),
     }
 }

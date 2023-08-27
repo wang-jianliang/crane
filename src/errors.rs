@@ -30,11 +30,27 @@ impl From<Box<dyn error::Error>> for Error {
     }
 }
 
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Error {
+            message: format!("{}", err),
+        }
+    }
+}
+
 // Implement the From trait to convert a PyErr to custom Error
 impl From<PyErr> for Error {
     fn from(error: PyErr) -> Self {
         Error {
             message: format!("Python error: {}", error),
+        }
+    }
+}
+
+impl From<git2::Error> for Error {
+    fn from(error: git2::Error) -> Self {
+        Error {
+            message: format!("Git error: {}", error),
         }
     }
 }

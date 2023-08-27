@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::components::git_dependency::GitDependency;
-use crate::components::solution::Solution;
 use crate::errors::Error;
 use crate::visitors::component_visitor::ComponentVisitor;
 use futures::future::try_join_all;
@@ -92,7 +91,7 @@ impl Component {
                 target_dir: target_dir.into(),
                 parent_id: None,
                 children: Vec::new(),
-                impl_: Box::new(Solution::from_py(py_obj)?),
+                impl_: Box::new(GitDependency::from_py(py_obj)?),
             },
             "git" => Component {
                 name,
