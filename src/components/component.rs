@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::collections::VecDeque;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::components::git_dependency::GitDependency;
@@ -72,7 +73,7 @@ pub trait FromPyObject {
 pub struct Component {
     pub name: String,
     pub type_: ComponentType,
-    pub target_dir: String,
+    pub target_dir: PathBuf,
     parent_id: Option<usize>,
     children: Vec<usize>,
     pub impl_: Box<dyn ComponentImpl>,
@@ -88,7 +89,7 @@ impl Component {
             "solution" => Component {
                 name,
                 type_: ComponentType::Solution,
-                target_dir,
+                target_dir: target_dir.into(),
                 parent_id: None,
                 children: Vec::new(),
                 impl_: Box::new(Solution::from_py(py_obj)?),
@@ -96,7 +97,7 @@ impl Component {
             "git" => Component {
                 name,
                 type_: ComponentType::GitDependency,
-                target_dir,
+                target_dir: target_dir.into(),
                 parent_id: None,
                 children: Vec::new(),
                 impl_: Box::new(GitDependency::from_py(py_obj)?),
@@ -131,7 +132,11 @@ pub trait ComponentImpl: std::fmt::Debug + Send {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-pub fn visit_component<V: ComponentVisitor>(id: ComponentID, visitor: V) -> Result<(), Error> {
+pub async fn visit_component<V: ComponentVisitor>(
+    id: ComponentID,
+    visitor: V,
+    root_dir: &PathBuf,
+) -> Result<(), Error> {
     let type_;
     {
         if let Some(comp) = ComponentArena::instance().get(id) {
@@ -143,15 +148,19 @@ pub fn visit_component<V: ComponentVisitor>(id: ComponentID, visitor: V) -> Resu
         }
     }
     match type_ {
-        ComponentType::Solution => visitor.visit_solution(id),
-        ComponentType::GitDependency => visitor.visit_git(id),
+        ComponentType::Solution => visitor.visit_solution(id, root_dir).await,
+        ComponentType::GitDependency => visitor.visit_git(id, root_dir).await,
         _ => Err(Error {
             message: String::from("unknown component type"),
         }),
     }
 }
 
-pub async fn walk_components<V>(component_ids: Vec<ComponentID>, visitor: V) -> Result<(), Error>
+pub async fn walk_components<V>(
+    component_ids: Vec<ComponentID>,
+    visitor: V,
+    root_dir: &PathBuf,
+) -> Result<(), Error>
 where
     V: ComponentVisitor,
 {
@@ -162,7 +171,7 @@ where
     let arena = ComponentArena::instance();
     let mut futures = Vec::new();
     while let Some(comp_id) = queue.pop_front() {
-        let func = async move { visit_component(comp_id, visitor) };
+        let func = async move { visit_component(comp_id, visitor, root_dir).await };
         futures.push(func);
         let comp = arena.get(comp_id).unwrap();
         for child_id in comp.children.iter() {

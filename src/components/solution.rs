@@ -15,8 +15,6 @@ pub struct Solution {
     #[from_py]
     pub src: String,
     #[from_py]
-    pub path: Option<PathBuf>,
-    #[from_py]
     pub deps_file: Option<PathBuf>,
 }
 
@@ -25,7 +23,6 @@ impl Default for Solution {
         Solution {
             name: String::from(""),
             src: String::from(""),
-            path: None,
             deps_file: None,
         }
     }

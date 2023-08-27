@@ -15,19 +15,19 @@ pub struct SyncArgs {
     pub dir: Option<PathBuf>,
 }
 
-async fn run_sync(target_dir: &PathBuf) -> Result<(), Error> {
-    println!("Sync dependencies in {:?}", target_dir);
+async fn run_sync(root_dir: &PathBuf) -> Result<(), Error> {
+    println!("Sync dependencies in {:?}", root_dir);
     // Check if current directory is in a git repository
-    if !git_utils::is_git_repo(Some(target_dir)) {
-        println!("Directory {:?} is not a git repository", target_dir);
+    if !git_utils::is_git_repo(Some(root_dir)) {
+        println!("Directory {:?} is not a git repository", root_dir);
         process::exit(exitcode::DATAERR);
     }
 
-    let mut full_path: PathBuf = target_dir.clone();
-    full_path.push(CRANE_FILE);
-    let solutions = parser::parse_components(&full_path, "solutions")?;
+    let mut full_path: PathBuf = root_dir.join(PathBuf::from(CRANE_FILE));
+    let deps = parser::parse_components(&full_path, "deps")?;
 
-    walk_components(solutions, ComponentSyncVisitor::new()).await
+    walk_components(deps, ComponentSyncVisitor::new(), &root_dir).await?;
+    Ok(())
 }
 
 pub async fn run(args: &SyncArgs) -> Result<(), Error> {

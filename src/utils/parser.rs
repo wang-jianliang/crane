@@ -29,7 +29,6 @@ pub fn parse_components<'a>(
         let mut components = vec![];
 
         for obj in py_objs.iter() {
-            println!("{:?}", obj);
             let comp = Component::from_py(obj)?;
             components.push(comp);
         }
