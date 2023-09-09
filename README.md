@@ -1,13 +1,42 @@
-# Crane (This project is still under development, and the core features are currently unavailable)
+# Crane (This project is still under development)
 
-**Crane** is an open-source code repository management tool designed to simplify source code management for large projects with multiple repositories.
+**Crane** is an open-source tool aimed at simplifying the management of multiple code repositories in large-scale projects, developed in Rust. It allows the execution of operations across various git repositories with a single command. For example, the command ```crane sync``` fetches all sub-repositories within a project in one go.
 
-## Introduction
+Crane is a tool similar to the [repo](https://gerrit.googlesource.com/git-repo/+/HEAD/README.md), which is used for source code management in Android projects. However, compared to the latter, Crane adopts a design of main repository plus sub-repositories, which is well compatible with individual git repositories, and provides more consistent user commands.
 
-For developers working on projects with multiple repositories, coordinating changes and dependencies can quickly become overwhelming. **Crane** solves this problem by allowing developers to track and manage multiple repositories from a single interface.
+The Crane tool leverages a configuration file, ".crane", to delineate the sub-repositories within the primary project. This ".crane" file, in essence a Python script, provides users with enhanced flexibility in outlining the dependency graph.
 
-## Targets
+## Core concepts
+[TODO]
 
-* **Simplified source code management:** With **Crane**, developers can easily manage multiple repositories, track changes, and coordinate dependencies.
+## Installation
+[TODO]
 
-* **Streamlined workflow:** By providing a centralized interface for managing repositories, **Crane** streamlines the development process and makes it easier for developers to manage multiple code repositories.
+## Quick start
+### 1. Create the configuration file
+Create a file named ".crane" within the root directory of your project and add following code into the file:
+```python
+deps = [
+    {
+        "type": "solution",
+        "name": "main",
+        "target_dir": ".",
+        "deps_file": ".crane_deps",
+        "url": "https://github.com/wang-jianliang/crane.git",
+        "branch": "main",
+    }
+]
+```
+
+### 2. Sync the code
+Run following command to sync the code to your local directoryExecute the following command to synchronize the code to the local directory, the effect is equivalent to executing the git clone command to pull all sub-repositories to the local one by one.
+```shell
+$ crane sync <project root>
+```
+
+## Build
+
+Clone this repository and run:
+```shell
+$ cargo build
+```
