@@ -79,24 +79,22 @@ pub struct Component {
 }
 
 impl Component {
-    pub fn from_py(py_obj: &PyAny) -> Result<ComponentID, PyErr> {
-        let name = py_obj.get_item("name")?.extract::<String>()?;
+    pub fn from_py(name: String, py_obj: &PyAny) -> Result<ComponentID, PyErr> {
         let type_ = py_obj.get_item("type")?.extract::<String>()?;
-        let target_dir = py_obj.get_item("target_dir")?.extract::<String>()?;
 
         let comp = match type_.as_str() {
             "solution" => Component {
-                name,
+                name: name.clone(),
                 type_: ComponentType::Solution,
-                target_dir: target_dir.into(),
+                target_dir: name.into(),
                 parent_id: None,
                 children: Vec::new(),
                 impl_: Box::new(GitDependency::from_py(py_obj)?),
             },
             "git" => Component {
-                name,
+                name: name.clone(),
                 type_: ComponentType::GitDependency,
-                target_dir: target_dir.into(),
+                target_dir: name.into(),
                 parent_id: None,
                 children: Vec::new(),
                 impl_: Box::new(GitDependency::from_py(py_obj)?),

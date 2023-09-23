@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::PyList;
+use pyo3::types::PyDict;
 use std::path::PathBuf;
 
 use crate::components::component::{Component, ComponentID};
@@ -24,12 +24,13 @@ pub fn parse_components<'a>(
                 }
             };
 
-        let py_objs: &PyList = module.getattr(var_name).unwrap().downcast().unwrap();
+        let py_objs: &PyDict = module.getattr(var_name).unwrap().downcast().unwrap();
 
         let mut components = vec![];
 
-        for obj in py_objs.iter() {
-            let comp = Component::from_py(obj)?;
+        for (key, obj) in py_objs.iter() {
+            let name: String = key.to_string();
+            let comp = Component::from_py(name, obj)?;
             components.push(comp);
         }
         log::debug!("Loaded components:\n{:#?}", components);
