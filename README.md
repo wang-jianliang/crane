@@ -1,3 +1,4 @@
+[![Build and unit tests](https://github.com/wang-jianliang/crane/actions/workflows/rust.yml/badge.svg)](https://github.com/wang-jianliang/crane/actions/workflows/rust.yml)
 # Crane (This project is still under development)
 
 **Crane** is an open-source tool aimed at simplifying the management of multiple code repositories in large-scale projects, developed in Rust. It allows the execution of operations across various git repositories with a single command. For example, the command ```crane sync``` fetches all sub-repositories within a project in one go.
