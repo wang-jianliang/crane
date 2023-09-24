@@ -2,9 +2,9 @@ use std::any::Any;
 
 use crate::components::component::{ComponentImpl, FromPyObject};
 
+use rustpython_vm::{PyObjectRef, VirtualMachine};
 use crane_derive::FromPyObject;
-use pyo3::prelude::*;
-use std::path::PathBuf;
+use crate::errors::Error;
 
 #[derive(Debug, FromPyObject)]
 pub struct GitDependency {
@@ -17,7 +17,7 @@ pub struct GitDependency {
     #[from_py]
     pub branch: Option<String>,
     #[from_py]
-    pub deps_file: Option<PathBuf>,
+    pub deps_file: Option<String>,
 }
 
 impl Default for GitDependency {

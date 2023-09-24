@@ -1,9 +1,14 @@
-use pyo3::prelude::*;
 use std::error;
 use std::fmt;
 
 pub struct Error {
     pub message: String,
+}
+
+impl Error {
+    pub fn new(message: String) -> Self {
+        Self{message}
+    }
 }
 
 impl fmt::Display for Error {
@@ -34,15 +39,6 @@ impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
         Error {
             message: format!("{}", err),
-        }
-    }
-}
-
-// Implement the From trait to convert a PyErr to custom Error
-impl From<PyErr> for Error {
-    fn from(error: PyErr) -> Self {
-        Error {
-            message: format!("Python error: {}", error),
         }
     }
 }

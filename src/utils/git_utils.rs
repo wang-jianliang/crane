@@ -154,7 +154,7 @@ pub fn fetch_repository(repo: &Repository, url: &str, refspec: &str) -> Result<(
     log::debug!("fetch refspec \"{}\"", refspec);
     // Check if the refspec is valid
     if is_valid_refspec(refspec) {
-        remote.fetch(&[refspec.clone()], Some(&mut fetch_option), None)?;
+        remote.fetch(&[refspec], Some(&mut fetch_option), None)?;
     } else {
         return Err(Error {
             message: String::from("Invalid refspec"),

@@ -2,11 +2,10 @@ use std::any::Any;
 
 use crate::components::component::{ComponentImpl, FromPyObject};
 
+use rustpython_vm::{PyObjectRef, VirtualMachine};
 use crane_derive::FromPyObject;
-// use futures::future::try_join_all;
-use pyo3::prelude::*;
 
-use std::path::PathBuf;
+use crate::errors::Error;
 
 #[derive(Debug, FromPyObject)]
 pub struct Solution {
@@ -15,7 +14,7 @@ pub struct Solution {
     #[from_py]
     pub src: String,
     #[from_py]
-    pub deps_file: Option<PathBuf>,
+    pub deps_file: Option<String>,
 }
 
 impl Default for Solution {

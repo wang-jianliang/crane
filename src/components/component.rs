@@ -9,7 +9,7 @@ use crate::visitors::component_visitor::ComponentVisitor;
 use futures::future::try_join_all;
 use lazy_static::lazy_static;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
-use pyo3::prelude::*;
+use rustpython_vm::{PyObjectRef, VirtualMachine};
 
 pub type ComponentID = usize;
 
@@ -63,7 +63,7 @@ pub enum ComponentType {
 }
 
 pub trait FromPyObject {
-    fn from_py(py_obj: &PyAny) -> Result<Self, PyErr>
+    fn from_py(py_obj: &PyObjectRef, vm: &VirtualMachine) -> Result<Self, Error>
     where
         Self: Sized;
 }
@@ -79,8 +79,12 @@ pub struct Component {
 }
 
 impl Component {
-    pub fn from_py(name: String, py_obj: &PyAny) -> Result<ComponentID, PyErr> {
-        let type_ = py_obj.get_item("type")?.extract::<String>()?;
+    pub fn from_py(name: String, py_obj: &PyObjectRef, vm: &VirtualMachine) -> Result<ComponentID, Error> {
+        // let type_ = py_obj.get_item("type", vm)?.downcast::<PyStr>().unwrap().as_str();
+        let type_ = py_obj.get_item("type", vm)
+            .or(Err(Error::new("Could not find field \"type\"".to_owned())))?
+            .try_into_value::<String>(vm)
+            .or(Err(Error::new("Invalid value type of field \"type\"".to_owned())))?;
 
         let comp = match type_.as_str() {
             "solution" => Component {
@@ -89,7 +93,7 @@ impl Component {
                 target_dir: name.into(),
                 parent_id: None,
                 children: Vec::new(),
-                impl_: Box::new(GitDependency::from_py(py_obj)?),
+                impl_: Box::new(GitDependency::from_py(py_obj, vm)?),
             },
             "git" => Component {
                 name: name.clone(),
@@ -97,12 +101,10 @@ impl Component {
                 target_dir: name.into(),
                 parent_id: None,
                 children: Vec::new(),
-                impl_: Box::new(GitDependency::from_py(py_obj)?),
+                impl_: Box::new(GitDependency::from_py(py_obj, vm)?),
             },
             _ => {
-                return Err(pyo3::exceptions::PyTypeError::new_err(
-                    "unknown component type: ".to_owned() + &type_,
-                ))
+                return Err(Error::new("unknown component type: ".to_owned() + &type_));
             }
         };
 

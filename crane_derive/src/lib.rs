@@ -25,12 +25,17 @@ pub fn component_derive(input: TokenStream) -> TokenStream {
                         }
                     },
                     _ => quote! {
-                        Err(err) => return Err(err)
+                        Err(err) => return Err(Error::new("Required field ".to_owned() + stringify!(#field_name) + " does not exist"))
                     }
                 };
                 Some(quote! {
-                    obj.#field_name = match py_obj.get_item(stringify!(#field_name)) {
-                        Ok(item) => item.extract::<#field_type>()?,
+                    obj.#field_name = match py_obj.get_item(stringify!(#field_name), vm) {
+                        Ok(item) => match item.try_into_value::<#field_type>(vm) {
+                            Ok(value) => value,
+                            Err(err) => {
+                                return Err(Error::new("Invalid value type of field ".to_owned() + stringify!(#field_name)));
+                            }
+                        },
                         #err_branch,
                     };
                 })
@@ -42,7 +47,7 @@ pub fn component_derive(input: TokenStream) -> TokenStream {
 
     let parse_from_py_impl = quote! {
         impl FromPyObject for #struct_name {
-            fn from_py(py_obj: &PyAny) -> Result<Self, PyErr> {
+            fn from_py(py_obj: &PyObjectRef, vm: &VirtualMachine) -> Result<Self, Error> {
                 let mut obj = #struct_name::default();
                 #(#fields_extract)*
                 Ok(obj)
