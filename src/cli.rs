@@ -12,11 +12,18 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
+    #[clap(
+        about = "Sync dependencies from remote",
+        long_about = "Sync all dependencies of current project from remote to local directory"
+    )]
     Sync(sync::SyncArgs),
+    #[clap(about = "Show current version")]
+    Version,
 }
 
 pub async fn run_command(cmd: &Command) -> Result<(), Error> {
     match cmd {
         Command::Sync(args) => sync::run(args).await,
+        Command::Version => version::run(),
     }
 }

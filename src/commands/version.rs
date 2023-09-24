@@ -1,13 +1,9 @@
-use clap::{App, SubCommand};
+use crate::errors::Error;
 
-pub fn create_subcommand() -> App<'static, 'static> {
-    SubCommand::with_name("version")
-        .about("Print the version of the application")
-}
-
-pub fn run(_matches: &clap::ArgMatches) {
+pub fn run() -> Result<(), Error> {
     let version = get_version();
     println!("{}", version);
+    Ok(())
 }
 
 // read version from cargo.toml
