@@ -17,16 +17,14 @@ The Crane tool leverages a configuration file, ".crane", to delineate the sub-re
 ### 1. Create the configuration file
 Create a file named ".crane" within the root directory of your project and add following code into the file:
 ```python
-deps = [
-    {
+deps = {
+    ".": {
         "type": "solution",
-        "name": "main",
-        "target_dir": ".",
         "deps_file": ".crane_deps",
         "url": "https://github.com/wang-jianliang/crane.git",
         "branch": "main",
     }
-]
+}
 ```
 
 ### 2. Sync the code
