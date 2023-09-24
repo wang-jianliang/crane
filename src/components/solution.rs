@@ -2,8 +2,8 @@ use std::any::Any;
 
 use crate::components::component::{ComponentImpl, FromPyObject};
 
-use rustpython_vm::{PyObjectRef, VirtualMachine};
 use crane_derive::FromPyObject;
+use rustpython_vm::{PyObjectRef, VirtualMachine};
 
 use crate::errors::Error;
 

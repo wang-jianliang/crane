@@ -79,12 +79,19 @@ pub struct Component {
 }
 
 impl Component {
-    pub fn from_py(name: String, py_obj: &PyObjectRef, vm: &VirtualMachine) -> Result<ComponentID, Error> {
+    pub fn from_py(
+        name: String,
+        py_obj: &PyObjectRef,
+        vm: &VirtualMachine,
+    ) -> Result<ComponentID, Error> {
         // let type_ = py_obj.get_item("type", vm)?.downcast::<PyStr>().unwrap().as_str();
-        let type_ = py_obj.get_item("type", vm)
+        let type_ = py_obj
+            .get_item("type", vm)
             .or(Err(Error::new("Could not find field \"type\"".to_owned())))?
             .try_into_value::<String>(vm)
-            .or(Err(Error::new("Invalid value type of field \"type\"".to_owned())))?;
+            .or(Err(Error::new(
+                "Invalid value type of field \"type\"".to_owned(),
+            )))?;
 
         let comp = match type_.as_str() {
             "solution" => Component {

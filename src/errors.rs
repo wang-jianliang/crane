@@ -7,7 +7,7 @@ pub struct Error {
 
 impl Error {
     pub fn new(message: String) -> Self {
-        Self{message}
+        Self { message }
     }
 }
 

@@ -2,9 +2,9 @@ use std::any::Any;
 
 use crate::components::component::{ComponentImpl, FromPyObject};
 
-use rustpython_vm::{PyObjectRef, VirtualMachine};
-use crane_derive::FromPyObject;
 use crate::errors::Error;
+use crane_derive::FromPyObject;
+use rustpython_vm::{PyObjectRef, VirtualMachine};
 
 #[derive(Debug, FromPyObject)]
 pub struct GitDependency {

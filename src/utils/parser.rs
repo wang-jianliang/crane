@@ -18,8 +18,11 @@ pub fn parse_components<'a>(
 
     interp.enter(|vm| {
         let scope = vm.new_scope_with_builtins();
-        vm.run_script(scope.clone(), config_file.clone().into_os_string().to_str().unwrap())
-            .or_else(|err| Err(Error::new(format_py_exception(&err, vm))))?;
+        vm.run_script(
+            scope.clone(),
+            config_file.clone().into_os_string().to_str().unwrap(),
+        )
+        .or_else(|err| Err(Error::new(format_py_exception(&err, vm))))?;
 
         let py_obj = match scope.globals.get_item(var_name, vm) {
             Ok(obj) => obj,

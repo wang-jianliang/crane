@@ -1,5 +1,4 @@
-use rustpython_vm::{PyRef, builtins::PyBaseException, VirtualMachine};
-
+use rustpython_vm::{builtins::PyBaseException, PyRef, VirtualMachine};
 
 pub fn format_py_exception(exc: &PyRef<PyBaseException>, vm: &VirtualMachine) -> String {
     let mut msg = String::new();
