@@ -16,7 +16,12 @@ pub enum Command {
         about = "Sync dependencies from remote",
         long_about = "Sync all dependencies of current project from remote to local directory"
     )]
-    Sync(sync::SyncArgs),
+    Sync(sync::CommandArgs),
+    #[clap(
+        about = "Show status of current project",
+        long_about = "Show status of all the dependencies in current project"
+    )]
+    Status(status::CommandArgs),
     #[clap(about = "Show current version")]
     Version,
 }
@@ -24,6 +29,7 @@ pub enum Command {
 pub async fn run_command(cmd: &Command) -> Result<(), Error> {
     match cmd {
         Command::Sync(args) => sync::run(args).await,
+        Command::Status(args) => status::run(args).await,
         Command::Version => version::run(),
     }
 }

@@ -6,15 +6,15 @@ use std::path::PathBuf;
 use crate::components::component::walk_components;
 use crate::constants::CRANE_FILE;
 use crate::utils::parser;
-use crate::visitors::sync_visitor::ComponentSyncVisitor;
+use crate::visitors::status_visitor::StatusVisitor;
 
 #[derive(Args, Debug)]
 pub struct CommandArgs {
     pub dir: Option<PathBuf>,
 }
 
-async fn run_sync(root_dir: &PathBuf) -> Result<(), Error> {
-    println!("Sync dependencies in {:?}", root_dir);
+async fn show_status(root_dir: &PathBuf) -> Result<(), Error> {
+    log::debug!("Show status in {:?}", root_dir);
 
     let crane_file = root_dir.join(PathBuf::from(CRANE_FILE));
     if !crane_file.exists() {
@@ -30,7 +30,7 @@ async fn run_sync(root_dir: &PathBuf) -> Result<(), Error> {
 
     let deps = parser::parse_components(&full_path, "deps")?;
 
-    walk_components(deps, &ComponentSyncVisitor::new(), &root_dir).await?;
+    walk_components(deps, &StatusVisitor::new(), &root_dir).await?;
     Ok(())
 }
 
@@ -38,9 +38,9 @@ pub async fn run(args: &CommandArgs) -> Result<(), Error> {
     println!("{:?}", args);
 
     if let Some(target_dir) = &args.dir {
-        run_sync(target_dir).await
+        show_status(target_dir).await
     } else {
         println!("Syncing current directory");
-        run_sync(&PathBuf::from(".")).await
+        show_status(&PathBuf::from(".")).await
     }
 }

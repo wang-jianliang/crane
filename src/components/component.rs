@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use crate::components::git_dependency::GitDependency;
 use crate::errors::Error;
+use crate::utils::parser;
 use crate::visitors::component_visitor::ComponentVisitor;
 use futures::future::try_join_all;
 use lazy_static::lazy_static;
@@ -138,9 +139,43 @@ pub trait ComponentImpl: std::fmt::Debug + Send {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
+pub async fn visit_solution<V: ComponentVisitor>(
+    id: ComponentID,
+    root_dir: &PathBuf,
+    visitor: &V,
+) -> Result<(), Error> {
+    // Handle deps if necessary
+    let deps_file;
+    let solution_name;
+    {
+        let comp = ComponentArena::instance().get(id).unwrap();
+        let solution = match comp.impl_.as_any().downcast_ref::<GitDependency>() {
+            Some(s) => s,
+            None => {
+                return Err(Error {
+                    message: format!(
+                        "expect type of Solution, but got {:?}: {:?}",
+                        comp.type_, comp.impl_
+                    ),
+                })
+            }
+        };
+        deps_file = solution.deps_file.clone();
+        solution_name = comp.name.clone();
+    }
+
+    if let Some(deps_file) = &deps_file {
+        let deps_file_path = root_dir.join(PathBuf::from(deps_file));
+        let deps = parser::parse_components(&deps_file_path, "deps")?;
+        walk_components(deps, visitor, &root_dir).await?
+    }
+    println!("Solution {} is done", solution_name);
+    Ok(())
+}
+
 pub async fn visit_component<V: ComponentVisitor>(
     id: ComponentID,
-    visitor: V,
+    visitor: &V,
     root_dir: &PathBuf,
 ) -> Result<(), Error> {
     let type_;
@@ -154,7 +189,8 @@ pub async fn visit_component<V: ComponentVisitor>(
         }
     }
     match type_ {
-        ComponentType::Solution => visitor.visit_solution(id, root_dir).await,
+        // ComponentType::Solution => visit_solution(id, root_dir, visitor).await,
+        ComponentType::Solution => visitor.visit_solution_with_deps(id, root_dir).await,
         ComponentType::GitDependency => visitor.visit_git(id, root_dir).await,
         _ => Err(Error {
             message: String::from("unknown component type"),
@@ -164,7 +200,7 @@ pub async fn visit_component<V: ComponentVisitor>(
 
 pub async fn walk_components<V>(
     component_ids: Vec<ComponentID>,
-    visitor: V,
+    visitor: &V,
     root_dir: &PathBuf,
 ) -> Result<(), Error>
 where
