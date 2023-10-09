@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::components::git_dependency::GitDependency;
+use crate::constants::CRANE_FILE;
 use crate::errors::Error;
 use crate::utils::parser;
 use crate::visitors::component_visitor::ComponentVisitor;
@@ -166,8 +167,7 @@ pub async fn visit_solution<V: ComponentVisitor>(
 
     if let Some(deps_file) = &deps_file {
         let deps_file_path = root_dir.join(PathBuf::from(deps_file));
-        let deps = parser::parse_components(&deps_file_path, "deps")?;
-        walk_components(deps, visitor, &root_dir).await?
+        walk_components(visitor, &root_dir, Some(&deps_file_path)).await?
     }
     println!("Solution {} is done", solution_name);
     Ok(())
@@ -199,13 +199,33 @@ pub async fn visit_component<V: ComponentVisitor>(
 }
 
 pub async fn walk_components<V>(
-    component_ids: Vec<ComponentID>,
     visitor: &V,
     root_dir: &PathBuf,
+    deps_file: Option<&PathBuf>,
 ) -> Result<(), Error>
 where
     V: ComponentVisitor,
 {
+    let abs_root_dir = std::fs::canonicalize(root_dir)
+        .expect(format!("Failed to get absolute path of {:?}", root_dir).as_str());
+    log::debug!("walk components in {:?}", abs_root_dir);
+
+    let crane_file = match deps_file {
+        Some(f) => f.clone(),
+        None => abs_root_dir.join(PathBuf::from(CRANE_FILE)),
+    };
+
+    if !crane_file.exists() {
+        return Err(Error {
+            message: String::from(format!(
+                "Can not find a valid config file in path {:?}",
+                crane_file
+            )),
+        });
+    }
+
+    let component_ids = parser::parse_components(&crane_file, "deps")?;
+
     let mut queue = VecDeque::new();
 
     queue.extend(component_ids);
@@ -213,7 +233,8 @@ where
     let arena = ComponentArena::instance();
     let mut futures = Vec::new();
     while let Some(comp_id) = queue.pop_front() {
-        let func = async move { visit_component(comp_id, visitor, root_dir).await };
+        let d = abs_root_dir.clone();
+        let func = async move { visit_component(comp_id, visitor, &d).await };
         futures.push(func);
         let comp = arena.get(comp_id).unwrap();
         for child_id in comp.children.iter() {

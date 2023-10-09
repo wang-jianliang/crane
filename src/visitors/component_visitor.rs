@@ -23,8 +23,6 @@ pub trait ComponentVisitor: std::marker::Copy + std::marker::Sync {
 
         // Handle deps if necessary
         let deps_file;
-        let solution_name;
-        let target_dir;
         {
             let comp = ComponentArena::instance().get(id).unwrap();
             let solution = match comp.impl_.as_any().downcast_ref::<GitDependency>() {
@@ -39,16 +37,12 @@ pub trait ComponentVisitor: std::marker::Copy + std::marker::Sync {
                 }
             };
             deps_file = solution.deps_file.clone();
-            solution_name = comp.name.clone();
-            target_dir = comp.target_dir.clone();
         }
 
         if let Some(deps_file) = &deps_file {
             let deps_file_path = root_dir.join(PathBuf::from(deps_file));
-            let deps = parser::parse_components(&deps_file_path, "deps")?;
-            walk_components(deps, self, &target_dir).await?
+            walk_components(self, root_dir, Some(&deps_file_path)).await?
         }
-        log::debug!("Solution {} is done", solution_name);
         Ok(())
     }
 }
