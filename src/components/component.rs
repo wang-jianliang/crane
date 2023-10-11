@@ -140,39 +140,6 @@ pub trait ComponentImpl: std::fmt::Debug + Send {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-pub async fn visit_solution<V: ComponentVisitor>(
-    id: ComponentID,
-    root_dir: &PathBuf,
-    visitor: &V,
-) -> Result<(), Error> {
-    // Handle deps if necessary
-    let deps_file;
-    let solution_name;
-    {
-        let comp = ComponentArena::instance().get(id).unwrap();
-        let solution = match comp.impl_.as_any().downcast_ref::<GitDependency>() {
-            Some(s) => s,
-            None => {
-                return Err(Error {
-                    message: format!(
-                        "expect type of Solution, but got {:?}: {:?}",
-                        comp.type_, comp.impl_
-                    ),
-                })
-            }
-        };
-        deps_file = solution.deps_file.clone();
-        solution_name = comp.name.clone();
-    }
-
-    if let Some(deps_file) = &deps_file {
-        let deps_file_path = root_dir.join(PathBuf::from(deps_file));
-        walk_components(visitor, &root_dir, Some(&deps_file_path)).await?
-    }
-    println!("Solution {} is done", solution_name);
-    Ok(())
-}
-
 pub async fn visit_component<V: ComponentVisitor>(
     id: ComponentID,
     visitor: &V,
