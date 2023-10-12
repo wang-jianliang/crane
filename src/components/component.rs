@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::components::git_dependency::GitDependency;
-use crate::constants::CRANE_FILE;
 use crate::errors::Error;
 use crate::utils::parser;
 use crate::visitors::component_visitor::ComponentVisitor;
@@ -75,8 +74,8 @@ pub struct Component {
     pub name: String,
     pub type_: ComponentType,
     pub target_dir: PathBuf,
-    parent_id: Option<usize>,
-    children: Vec<usize>,
+    pub parent_id: Option<usize>,
+    pub children: Vec<usize>,
     pub impl_: Box<dyn ComponentImpl>,
 }
 
@@ -130,6 +129,10 @@ impl Component {
         self.children.push(child_id);
     }
 
+    pub fn add_children(&mut self, children: &mut Vec<usize>) {
+        self.children.append(children)
+    }
+
     pub fn remove_child(&mut self, child_id: ComponentID) {
         self.children.retain(|&id| id != child_id);
     }
@@ -143,12 +146,14 @@ pub trait ComponentImpl: std::fmt::Debug + Send {
 pub async fn visit_component<V: ComponentVisitor>(
     id: ComponentID,
     visitor: &V,
-    root_dir: &PathBuf,
+    base_dir: &PathBuf,
 ) -> Result<(), Error> {
     let type_;
+    let root_dir;
     {
         if let Some(comp) = ComponentArena::instance().get(id) {
             type_ = comp.type_.clone();
+            root_dir = base_dir.join(&comp.target_dir);
         } else {
             return Err(Error {
                 message: String::from("unknown component id"),
@@ -156,9 +161,8 @@ pub async fn visit_component<V: ComponentVisitor>(
         }
     }
     match type_ {
-        // ComponentType::Solution => visit_solution(id, root_dir, visitor).await,
-        ComponentType::Solution => visitor.visit_solution_with_deps(id, root_dir).await,
-        ComponentType::GitDependency => visitor.visit_git(id, root_dir).await,
+        ComponentType::Solution => visitor.visit_solution_with_deps(id, &root_dir).await,
+        ComponentType::GitDependency => visitor.visit_git(id, &root_dir).await,
         _ => Err(Error {
             message: String::from("unknown component type"),
         }),
@@ -168,8 +172,8 @@ pub async fn visit_component<V: ComponentVisitor>(
 pub async fn walk_components<V>(
     visitor: &V,
     root_dir: &PathBuf,
-    deps_file: Option<&PathBuf>,
-) -> Result<(), Error>
+    deps_file: &PathBuf,
+) -> Result<Vec<usize>, Error>
 where
     V: ComponentVisitor,
 {
@@ -177,10 +181,7 @@ where
         .expect(format!("Failed to get absolute path of {:?}", root_dir).as_str());
     log::debug!("walk components in {:?}", abs_root_dir);
 
-    let crane_file = match deps_file {
-        Some(f) => f.clone(),
-        None => abs_root_dir.join(PathBuf::from(CRANE_FILE)),
-    };
+    let crane_file = abs_root_dir.join(deps_file);
 
     if !crane_file.exists() {
         return Err(Error {
@@ -195,7 +196,7 @@ where
 
     let mut queue = VecDeque::new();
 
-    queue.extend(component_ids);
+    queue.extend(&component_ids);
 
     let arena = ComponentArena::instance();
     let mut futures = Vec::new();
@@ -210,7 +211,7 @@ where
     }
 
     match try_join_all(futures).await {
-        Ok(_) => Ok(()),
+        Ok(_) => Ok(component_ids),
         Err(err) => Err(err),
     }
 }

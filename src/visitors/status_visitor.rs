@@ -1,12 +1,7 @@
 use std::path::PathBuf;
 
-use crate::components::component::{walk_components, ComponentArena, ComponentID};
-use crate::components::git_dependency::GitDependency;
+use crate::components::component::{ComponentArena, ComponentID};
 use crate::errors::Error;
-use crate::utils::git_utils::{
-    add_alternate, checkout_to_target, fetch_repository, open_or_create_repo,
-};
-use crate::utils::{cache::ensure_cache_dir, encode::string_to_base64, parser};
 use crate::visitors::component_visitor::ComponentVisitor;
 use async_trait::async_trait;
 

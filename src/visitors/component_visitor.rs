@@ -4,7 +4,6 @@ use crate::components::{
     git_dependency::GitDependency,
 };
 use crate::errors::Error;
-use crate::utils::parser;
 use async_trait::async_trait;
 use std::path::PathBuf;
 
@@ -40,8 +39,21 @@ pub trait ComponentVisitor: std::marker::Copy + std::marker::Sync {
         }
 
         if let Some(deps_file) = &deps_file {
+            log::debug!("visit deps of solution {} in {}", id, deps_file);
             let deps_file_path = root_dir.join(PathBuf::from(deps_file));
-            walk_components(self, root_dir, Some(&deps_file_path)).await?
+            let children = walk_components(self, &root_dir, &deps_file_path).await?;
+
+            let arena = ComponentArena::instance();
+            {
+                let mut comp = arena.get(id).unwrap();
+                comp.add_children(&mut children.clone());
+            }
+            {
+                for child_id in children {
+                    let mut child = arena.get(child_id).unwrap();
+                    child.parent_id = Some(id);
+                }
+            }
         }
         Ok(())
     }

@@ -168,48 +168,20 @@ pub fn fetch_repository(repo: &Repository, url: &str, refspec: &str) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use git2::{Repository, RepositoryInitOptions, Signature};
-    use std::{error::Error, fs::File, io::Write, path::Path};
+    use crate::utils::test_utils;
+    use git2::Repository;
     use tempdir::TempDir;
-
-    // Function to create a git repository with a single commit in the specified directory
-    fn create_git_repo_in_dir(repo_path: &Path) -> Result<String, Box<dyn Error>> {
-        // Initialize a new git repository
-        let mut opts = RepositoryInitOptions::new();
-        opts.initial_head("main"); // Set the initial branch to "main"
-        opts.bare(false); // Create a non-bare repository
-        let repo = Repository::init_opts(repo_path, &opts)?;
-
-        // Create a new file in the repository
-        let mut file = File::create(repo_path.join("test.txt"))?;
-        write!(file, "Hello, world!")?;
-
-        // Add the new file to the git index
-        let mut index = repo.index()?;
-        index.add_path(Path::new("test.txt"))?;
-        let oid = index.write_tree()?;
-
-        // Create a new commit
-        let tree = repo.find_tree(oid)?;
-        let signature = Signature::now("test", "test@example.com")?;
-        repo.commit(
-            Some("HEAD"),
-            &signature,
-            &signature,
-            "Initial commit",
-            &tree,
-            &[],
-        )?;
-
-        // Return the local clone URL of the repository
-        Ok(format!("file://{}", repo_path.to_string_lossy()))
-    }
 
     #[test]
     fn test_fetch_repository_positive() {
         let remote_repo_dir =
             TempDir::new("remote_repo").expect("Failed to create temporary directory");
-        let repo_url = create_git_repo_in_dir(remote_repo_dir.path()).unwrap();
+        let repo_url = test_utils::create_git_repo_in_dir(
+            remote_repo_dir.path(),
+            &PathBuf::from("test.txt"),
+            "Hello, world!",
+        )
+        .unwrap();
 
         let temp_dir = TempDir::new("test_repo").expect("Failed to create temporary directory");
         let target_dir = temp_dir.path().to_path_buf();
@@ -217,7 +189,6 @@ mod tests {
         let repo = Repository::init(&target_dir).unwrap();
         let result = fetch_repository(&repo, repo_url.as_str(), "refs/heads/main");
         assert!(result.is_ok());
-        // Add assertions to verify the expected behavior
 
         // The temporary directory will be automatically deleted when `temp_dir` goes out of scope
     }
@@ -239,7 +210,12 @@ mod tests {
     fn test_fetch_repository_negative_invalid_refspec() {
         let remote_repo_dir =
             TempDir::new("remote_repo").expect("Failed to create temporary directory");
-        let repo_url = create_git_repo_in_dir(remote_repo_dir.path()).unwrap();
+        let repo_url = test_utils::create_git_repo_in_dir(
+            remote_repo_dir.path(),
+            &PathBuf::from("test.txt"),
+            "test",
+        )
+        .unwrap();
 
         let temp_dir = TempDir::new("test_repo").expect("Failed to create temporary directory");
         let target_dir = temp_dir.path().to_path_buf();
