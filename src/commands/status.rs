@@ -235,9 +235,9 @@ mod tests {
         //    └── sub2_sub1
         let err_msg = "Failed to create temporary directory";
         let main_repo_temp_dir = TempDir::new("main_repo").expect(err_msg);
-        // let main_repo_dir = main_repo_temp_dir.into_path();
-        std::fs::remove_dir_all("test_status");
-        let main_repo_dir = PathBuf::from("test_status");
+        let main_repo_dir = main_repo_temp_dir.into_path();
+        // std::fs::remove_dir_all("test_status");
+        // let main_repo_dir = PathBuf::from("test_status");
         let sub1_repo_dir = main_repo_dir.clone().join("sub1");
         let sub1_sub1_repo_dir = sub1_repo_dir.clone().join("sub1_sub1");
         let sub1_sub2_repo_dir = sub1_repo_dir.clone().join("sub1_sub2");
@@ -475,9 +475,9 @@ r#"deps = {{
       Changes untracked:
         test3.txt
 
-    └─ sub2 (clean)
-        └─ sub2_sub1
-          Changes to be commited:
+    ├─ sub2
+      └─ sub2_sub1
+          Changes to be committed:
             modified: test.txt
 
           Changes not staged:
@@ -488,17 +488,17 @@ r#"deps = {{
             test4.txt
 
     └─ sub1
-      Changes not staged:
-        modified: test.txt
+        Changes not staged:
+          modified: test.txt
 
-      Changes untracked:
-        test2.txt
+        Changes untracked:
+          test2.txt
 
+      ├─ sub1_sub2
       └─ sub1_sub1
-        Changes to be committed:
-          deleted: test.txt
+          Changes to be committed:
+            deleted: test.txt
 
-      └─ sub1_sub2 (clean)
 ";
         assert_eq!(output_str, expected_output);
     }
