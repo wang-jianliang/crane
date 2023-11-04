@@ -181,7 +181,13 @@ async fn show_status(root_dir: &PathBuf, mut output: impl std::io::Write) -> Res
             bifurcation,
             width = depth * TAB_SIZE
         )?;
-        writeln!(output, "{}", comp.name)?;
+        write!(output, "{}", comp.name)?;
+
+        // Show head
+        let repo = Repository::open(&comp.target_dir)?;
+        let head = repo.head()?;
+        let head_info = head.shorthand().unwrap_or("unknown");
+        writeln!(output, " ({})", head_info)?;
 
         // Directories of children should not be seen
         let mut children_names: Vec<String> = vec![];
@@ -465,7 +471,7 @@ r#"deps = {{
         println!("{}", output_str);
 
         let expected_output = "
-  (main)
+  (main) (main)
       Changes to be committed:
         new: test.txt
 
@@ -475,8 +481,8 @@ r#"deps = {{
       Changes untracked:
         test3.txt
 
-    ├─ sub2
-      └─ sub2_sub1
+    ├─ sub2 (main)
+      └─ sub2_sub1 (main)
           Changes to be committed:
             modified: test.txt
 
@@ -487,15 +493,15 @@ r#"deps = {{
           Changes untracked:
             test4.txt
 
-    └─ sub1
+    └─ sub1 (main)
         Changes not staged:
           modified: test.txt
 
         Changes untracked:
           test2.txt
 
-      ├─ sub1_sub2
-      └─ sub1_sub1
+      ├─ sub1_sub2 (main)
+      └─ sub1_sub1 (main)
           Changes to be committed:
             deleted: test.txt
 
