@@ -22,7 +22,6 @@ pub trait ComponentVisitor: std::marker::Copy + std::marker::Sync {
 
         // Handle deps if necessary
         let deps_file;
-        let name;
         {
             let comp = ComponentArena::instance().get(id).unwrap();
             let solution = match comp.impl_.as_any().downcast_ref::<GitDependency>() {
@@ -37,7 +36,6 @@ pub trait ComponentVisitor: std::marker::Copy + std::marker::Sync {
                 }
             };
             deps_file = solution.deps_file.clone();
-            name = comp.name.clone();
         }
 
         if let Some(deps_file) = &deps_file {

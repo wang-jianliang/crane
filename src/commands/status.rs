@@ -8,7 +8,6 @@ use git2::StatusOptions;
 use std::path::Path;
 use std::path::PathBuf;
 
-use crate::components::component::walk_components;
 use crate::components::component::ComponentArena;
 use crate::constants::CRANE_FILE;
 use crate::visitors::status_visitor::StatusVisitor;
@@ -221,7 +220,7 @@ pub async fn run(args: &CommandArgs) -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::PathBuf};
+    use std::path::PathBuf;
     use tempdir::TempDir;
 
     use crate::utils::test_utils;
@@ -453,7 +452,6 @@ r#"deps = {{
         );
         assert!(res.is_ok());
 
-        fs::remove_file("test3.txt");
         // sub2 sub1: test4.txt(untracked)
         let res = test_utils::modify_file_in_repo(
             &sub2_sub1_repo_dir,

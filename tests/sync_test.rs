@@ -16,8 +16,8 @@ fn test_sync_nested_repositories() {
     let sub1_repo_dir = TempDir::new("sub1_repo").expect(err_msg);
     let sub1_sub1_repo_dir = TempDir::new("sub1_sub1_repo").expect(err_msg);
     let sub1_sub2_repo_dir = TempDir::new("sub1_sub2_repo").expect(err_msg);
-    let sub2_repo_dir = TempDir::new("sub2_repo").expect(err_msg);
-    let sub2_sub1_repo_dir = TempDir::new("sub2_sub1_repo").expect(err_msg);
+    let _sub2_repo_dir = TempDir::new("sub2_repo").expect(err_msg);
+    let _sub2_sub1_repo_dir = TempDir::new("sub2_sub1_repo").expect(err_msg);
 
     // Create repositories
     let sub1_sub1_repo = test_utils::create_git_repo_in_dir(
