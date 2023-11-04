@@ -23,6 +23,7 @@ home = "0.5.5"
 rustpython-vm = "0.3.0"
 rustpython = "0.3.0"
 test-log = "0.2.13"
+colored = "2.0.4"
 
 [dependencies.async-std]
 version = "1.6"

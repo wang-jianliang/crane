@@ -1,6 +1,7 @@
 use crate::components::component::visit_root_solution;
 use crate::errors::Error;
 use clap::Args;
+use colored::Colorize;
 use git2::Repository;
 use git2::Status;
 use git2::StatusOptions;
@@ -93,8 +94,8 @@ where
                 depth + 1,
                 format!(
                     "{}: {}",
-                    format_status(entry.status()),
-                    format_diff(entry.head_to_index().unwrap())
+                    format_status(entry.status()).green(),
+                    format_diff(entry.head_to_index().unwrap()).green(),
                 )
                 .as_str(),
             )?;
@@ -102,11 +103,11 @@ where
         writeln!(output, "")?;
     }
 
+    // show diff between index and worktree
     let mut filtered_statuses = statuses
         .iter()
         .filter(|e| e.status() != Status::WT_NEW && !e.index_to_workdir().is_none())
         .peekable();
-    // show diff between index and worktree
     if filtered_statuses.peek().is_some() {
         writeln_with_depth(output, depth, "Changes not staged:")?;
         for entry in filtered_statuses {
@@ -115,8 +116,8 @@ where
                 depth + 1,
                 format!(
                     "{}: {}",
-                    format_status(entry.status()),
-                    format_diff(entry.index_to_workdir().unwrap())
+                    format_status(entry.status()).red(),
+                    format_diff(entry.index_to_workdir().unwrap()).red(),
                 )
                 .as_str(),
             )?;
@@ -124,6 +125,7 @@ where
         writeln!(output, "")?;
     }
 
+    // show untracked paths
     let mut filtered_statuses = statuses
         .iter()
         .filter(|e| {
@@ -132,14 +134,13 @@ where
                 && !path_filter(e.index_to_workdir().unwrap().new_file().path().unwrap())
         })
         .peekable();
-    // show untracked paths
     if filtered_statuses.peek().is_some() {
         writeln_with_depth(output, depth, "Changes untracked:")?;
         for entry in filtered_statuses {
             writeln_with_depth(
                 output,
                 depth + 1,
-                format!("{}", format_diff(entry.index_to_workdir().unwrap())).as_str(),
+                format!("{}", format_diff(entry.index_to_workdir().unwrap()).red()).as_str(),
             )?;
         }
         writeln!(output, "")?;
@@ -468,42 +469,7 @@ r#"deps = {{
         let output_str = std::str::from_utf8(output.as_slice()).unwrap();
         println!("{}", output_str);
 
-        let expected_output = "
-  (main) (main)
-      Changes to be committed:
-        new: test.txt
-
-      Changes not staged:
-        modified: test2.txt
-
-      Changes untracked:
-        test3.txt
-
-    ├─ sub2 (main)
-      └─ sub2_sub1 (main)
-          Changes to be committed:
-            modified: test.txt
-
-          Changes not staged:
-            modified: test2.txt
-            deleted: test3.txt
-
-          Changes untracked:
-            test4.txt
-
-    └─ sub1 (main)
-        Changes not staged:
-          modified: test.txt
-
-        Changes untracked:
-          test2.txt
-
-      ├─ sub1_sub2 (main)
-      └─ sub1_sub1 (main)
-          Changes to be committed:
-            deleted: test.txt
-
-";
+        let expected_output = "\n  (main) (main)\n      Changes to be committed:\n        \u{1b}[32mnew\u{1b}[0m: \u{1b}[32mtest.txt\u{1b}[0m\n\n      Changes not staged:\n        \u{1b}[31mmodified\u{1b}[0m: \u{1b}[31mtest2.txt\u{1b}[0m\n\n      Changes untracked:\n        \u{1b}[31mtest3.txt\u{1b}[0m\n\n    ├─ sub2 (main)\n      └─ sub2_sub1 (main)\n          Changes to be committed:\n            \u{1b}[32mmodified\u{1b}[0m: \u{1b}[32mtest.txt\u{1b}[0m\n\n          Changes not staged:\n            \u{1b}[31mmodified\u{1b}[0m: \u{1b}[31mtest2.txt\u{1b}[0m\n            \u{1b}[31mdeleted\u{1b}[0m: \u{1b}[31mtest3.txt\u{1b}[0m\n\n          Changes untracked:\n            \u{1b}[31mtest4.txt\u{1b}[0m\n\n    └─ sub1 (main)\n        Changes not staged:\n          \u{1b}[31mmodified\u{1b}[0m: \u{1b}[31mtest.txt\u{1b}[0m\n\n        Changes untracked:\n          \u{1b}[31mtest2.txt\u{1b}[0m\n\n      ├─ sub1_sub2 (main)\n      └─ sub1_sub1 (main)\n          Changes to be committed:\n            \u{1b}[32mdeleted\u{1b}[0m: \u{1b}[32mtest.txt\u{1b}[0m\n\n";
         assert_eq!(output_str, expected_output);
     }
 }
