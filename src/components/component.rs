@@ -194,11 +194,9 @@ pub async fn walk_components<V>(
 where
     V: ComponentVisitor,
 {
-    let abs_root_dir = std::fs::canonicalize(root_dir)
-        .expect(format!("Failed to get absolute path of {:?}", root_dir).as_str());
-    log::debug!("walk components in {:?}", abs_root_dir);
+    log::debug!("walk components in {:?}", root_dir);
 
-    let crane_file = abs_root_dir.join(deps_file);
+    let crane_file = root_dir.join(deps_file);
 
     if !crane_file.exists() {
         return Err(Error {
@@ -218,11 +216,11 @@ where
     let arena = ComponentArena::instance();
     let mut futures = Vec::new();
     while let Some(comp_id) = queue.pop_front() {
-        let d = abs_root_dir.clone();
+        let d = root_dir.clone();
         let func = async move { visit_component(comp_id, visitor, &d).await };
         futures.push(func);
         let mut comp = arena.get_mut(comp_id).unwrap();
-        comp.target_dir = abs_root_dir.join(comp.target_dir.clone());
+        comp.target_dir = root_dir.join(comp.target_dir.clone());
 
         for child_id in comp.children.iter() {
             queue.push_back(*child_id);
@@ -264,7 +262,10 @@ where
     let commit = head.target().map(|c| c.to_string());
 
     let abs_root_dir = std::fs::canonicalize(root_dir)
-        .expect(format!("Failed to get absolute path of {:?}", root_dir).as_str());
+        .unwrap_or_else(|_| panic!("Failed to get absolute path of {:?}", root_dir));
+    let abs_root_dir_clone = abs_root_dir.clone();
+    let deps_file = deps_file.filter(|f| abs_root_dir_clone.join(f).exists());
+
     let comp = Component {
         name: String::from("(main)"),
         type_: ComponentType::Solution,
@@ -279,6 +280,7 @@ where
             paths: None,
         }),
     };
+
     let id = ComponentArena::instance().add(comp);
     visit_component(id, visitor, root_dir).await?;
     Ok(id)
