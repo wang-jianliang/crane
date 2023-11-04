@@ -8,6 +8,7 @@ use crate::errors::Error;
 use crate::utils::parser;
 use crate::visitors::component_visitor::ComponentVisitor;
 use futures::future::try_join_all;
+use git2::Repository;
 use lazy_static::lazy_static;
 use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
 use rustpython_vm::{PyObjectRef, VirtualMachine};
@@ -216,4 +217,53 @@ where
         Ok(_) => Ok(component_ids),
         Err(err) => Err(err),
     }
+}
+
+pub async fn visit_root_solution<V>(
+    visitor: &V,
+    root_dir: &PathBuf,
+    deps_file: Option<String>,
+) -> Result<ComponentID, Error>
+where
+    V: ComponentVisitor,
+{
+    let repo = Repository::open(root_dir)?;
+    let url = match repo.find_remote("origin") {
+        Ok(remote) => remote.url().map_or_else(
+            || {
+                log::warn!("The remote url for current repository is not set");
+                String::new()
+            },
+            |u| u.to_string(),
+        ),
+        Err(err) => {
+            log::warn!("{}", err);
+            String::new()
+        }
+    };
+
+    let head = repo.head()?;
+
+    let branch = head.shorthand().map(|b| b.to_string());
+    let commit = head.target().map(|c| c.to_string());
+
+    let abs_root_dir = std::fs::canonicalize(root_dir)
+        .expect(format!("Failed to get absolute path of {:?}", root_dir).as_str());
+    let comp = Component {
+        name: String::from("(main)"),
+        type_: ComponentType::Solution,
+        target_dir: abs_root_dir,
+        parent_id: None,
+        children: vec![],
+        impl_: Box::new(GitDependency {
+            url,
+            branch,
+            commit,
+            deps_file,
+            paths: None,
+        }),
+    };
+    let id = ComponentArena::instance().add(comp);
+    visit_component(id, visitor, root_dir).await?;
+    Ok(id)
 }

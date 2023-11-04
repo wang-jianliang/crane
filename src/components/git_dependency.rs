@@ -9,7 +9,7 @@ use rustpython_vm::{PyObjectRef, VirtualMachine};
 #[derive(Debug, FromPyObject)]
 pub struct GitDependency {
     #[from_py]
-    paths: Option<Vec<String>>,
+    pub paths: Option<Vec<String>>,
     #[from_py]
     pub url: String,
     #[from_py]

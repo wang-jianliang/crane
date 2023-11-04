@@ -1,3 +1,4 @@
+use crate::components::component::visit_root_solution;
 use crate::errors::Error;
 use clap::Args;
 use git2::Repository;
@@ -146,18 +147,27 @@ async fn show_status(root_dir: &PathBuf, mut output: impl std::io::Write) -> Res
         return Err(err.into());
     }
 
-    let deps_file = PathBuf::from(CRANE_FILE);
-    let commponent_ids = walk_components(&StatusVisitor::new(), &root_dir, &deps_file).await?;
+    let root_id = visit_root_solution(
+        &StatusVisitor::new(),
+        root_dir,
+        Some(CRANE_FILE.to_string()),
+    )
+    .await?;
 
-    let mut nodes = vec![];
-    for i in 0..commponent_ids.len() {
-        nodes.push((0, i == 0, commponent_ids[i]));
-    }
+    // Vec(depth, tail, current_id)
+    let mut nodes = vec![(1, true, root_id)];
+
     while !nodes.is_empty() {
         let (depth, tail, current_id) = nodes.pop().unwrap();
         let comp = ComponentArena::instance().get(current_id).unwrap();
 
-        let bifurcation = if tail { "└──" } else { "├──" };
+        let bifurcation = if comp.parent_id.is_none() {
+            ""
+        } else if tail {
+            "└──"
+        } else {
+            "├──"
+        };
         write!(
             output,
             "{:>width$}{}",
@@ -166,7 +176,7 @@ async fn show_status(root_dir: &PathBuf, mut output: impl std::io::Write) -> Res
             width = depth * TAB_SIZE
         )?;
         writeln!(output, "{}", comp.name)?;
-        show_status_in_repo(&comp.target_dir, depth, &mut output)?;
+        show_status_in_repo(&comp.target_dir, depth + 1, &mut output)?;
 
         if !comp.children.is_empty() {
             for i in 0..comp.children.len() {
@@ -213,7 +223,7 @@ mod tests {
         let main_repo_temp_dir = TempDir::new("main_repo").expect(err_msg);
         let main_repo_dir = main_repo_temp_dir.into_path();
         // std::fs::remove_dir_all("test_status");
-        let main_repo_dir = PathBuf::from("test_status");
+        // let main_repo_dir = PathBuf::from("test_status");
         let sub1_repo_dir = main_repo_dir.clone().join("sub1");
         let sub1_sub1_repo_dir = sub1_repo_dir.clone().join("sub1_sub1");
         let sub1_sub2_repo_dir = sub1_repo_dir.clone().join("sub1_sub2");
