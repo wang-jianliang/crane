@@ -47,12 +47,12 @@ pub trait ComponentVisitor: std::marker::Copy + std::marker::Sync {
 
             let arena = ComponentArena::instance();
             {
-                let mut comp = arena.get(id).unwrap();
+                let mut comp = arena.get_mut(id).unwrap();
                 comp.add_children(&mut children.clone());
             }
             {
                 for child_id in children {
-                    let mut child = arena.get(child_id).unwrap();
+                    let mut child = arena.get_mut(child_id).unwrap();
                     child.parent_id = Some(id);
                 }
             }

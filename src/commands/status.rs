@@ -64,11 +64,15 @@ fn format_diff(diff: git2::DiffDelta) -> String {
     }
 }
 
-fn show_status_in_repo(
+fn show_status_in_repo<F>(
+    output: &mut impl std::io::Write,
     repo_dir: &Path,
     depth: usize,
-    output: &mut impl std::io::Write,
-) -> Result<(), Error> {
+    path_filter: F,
+) -> Result<(), Error>
+where
+    F: Fn(&Path) -> bool,
+{
     log::debug!("show status in repo {:?}", repo_dir);
     let repo = Repository::open(repo_dir)?;
 
@@ -123,9 +127,13 @@ fn show_status_in_repo(
 
     let mut filtered_statuses = statuses
         .iter()
-        .filter(|e| e.status() == Status::WT_NEW && !e.index_to_workdir().is_none())
+        .filter(|e| {
+            e.status() == Status::WT_NEW
+                && !e.index_to_workdir().is_none()
+                && !path_filter(e.index_to_workdir().unwrap().new_file().path().unwrap())
+        })
         .peekable();
-    // show diff between index and worktree
+    // show untracked paths
     if filtered_statuses.peek().is_some() {
         writeln_with_depth(output, depth, "Changes untracked:")?;
         for entry in filtered_statuses {
@@ -143,9 +151,7 @@ fn show_status_in_repo(
 
 async fn show_status(root_dir: &PathBuf, mut output: impl std::io::Write) -> Result<(), Error> {
     log::debug!("show status in {:?}", root_dir);
-    if let Err(err) = writeln!(output, "status:") {
-        return Err(err.into());
-    }
+    writeln!(output, "")?;
 
     let root_id = visit_root_solution(
         &StatusVisitor::new(),
@@ -164,9 +170,9 @@ async fn show_status(root_dir: &PathBuf, mut output: impl std::io::Write) -> Res
         let bifurcation = if comp.parent_id.is_none() {
             ""
         } else if tail {
-            "└──"
+            "└─ "
         } else {
-            "├──"
+            "├─ "
         };
         write!(
             output,
@@ -176,13 +182,21 @@ async fn show_status(root_dir: &PathBuf, mut output: impl std::io::Write) -> Res
             width = depth * TAB_SIZE
         )?;
         writeln!(output, "{}", comp.name)?;
-        show_status_in_repo(&comp.target_dir, depth + 1, &mut output)?;
 
+        // Directories of children should not be seen
+        let mut children_names: Vec<String> = vec![];
         if !comp.children.is_empty() {
             for i in 0..comp.children.len() {
                 nodes.push((depth + 1, i == 0, comp.children[i]));
+                if let Some(child) = ComponentArena::instance().get(comp.children[i]) {
+                    children_names.push(child.name.clone());
+                }
             }
         }
+
+        show_status_in_repo(&mut output, &comp.target_dir, depth + 1, |path| -> bool {
+            children_names.iter().any(|n| path.starts_with(n))
+        })?;
     }
 
     let _ = output.flush();
@@ -221,9 +235,9 @@ mod tests {
         //    └── sub2_sub1
         let err_msg = "Failed to create temporary directory";
         let main_repo_temp_dir = TempDir::new("main_repo").expect(err_msg);
-        let main_repo_dir = main_repo_temp_dir.into_path();
-        // std::fs::remove_dir_all("test_status");
-        // let main_repo_dir = PathBuf::from("test_status");
+        // let main_repo_dir = main_repo_temp_dir.into_path();
+        std::fs::remove_dir_all("test_status");
+        let main_repo_dir = PathBuf::from("test_status");
         let sub1_repo_dir = main_repo_dir.clone().join("sub1");
         let sub1_sub1_repo_dir = sub1_repo_dir.clone().join("sub1_sub1");
         let sub1_sub2_repo_dir = sub1_repo_dir.clone().join("sub1_sub2");
@@ -287,25 +301,6 @@ r#"deps = {{
         .unwrap();
 
         // Make some changes
-        // main: test.txt(new, to be committed)
-        let res = test_utils::modify_file_in_repo(
-            &main_repo_dir,
-            &PathBuf::from("test.txt"),
-            "test\n",
-            true,
-            true,
-            true,
-        );
-        assert!(res.is_ok());
-        let res = test_utils::modify_file_in_repo(
-            &main_repo_dir,
-            &PathBuf::from("test.txt"),
-            "test\n",
-            true,
-            false,
-            false,
-        );
-        assert!(res.is_ok());
         // main: test2.txt(modified, not staged)
         let res = test_utils::modify_file_in_repo(
             &main_repo_dir,
@@ -325,6 +320,27 @@ r#"deps = {{
             false,
         );
         assert!(res.is_ok());
+        // main: test.txt(new, to be committed)
+        let res = test_utils::modify_file_in_repo(
+            &main_repo_dir,
+            &PathBuf::from("test.txt"),
+            "test\n",
+            true,
+            true,
+            false,
+        );
+        assert!(res.is_ok());
+        // main: test3.txt(new, untracked)
+        let res = test_utils::modify_file_in_repo(
+            &main_repo_dir,
+            &PathBuf::from("test3.txt"),
+            "test\n",
+            true,
+            false,
+            false,
+        );
+        assert!(res.is_ok());
+
         // sub1: test.txt(modified, not staged)
         let res = test_utils::modify_file_in_repo(
             &sub1_repo_dir,
@@ -448,49 +464,41 @@ r#"deps = {{
         let output_str = std::str::from_utf8(output.as_slice()).unwrap();
         println!("{}", output_str);
 
-        let expected_output = "status:
-(main):
-    (changes to be committed)
-
+        let expected_output = "
+  (main)
+      Changes to be committed:
         new: test.txt
 
-    (changes not staged)
-
+      Changes not staged:
         modified: test2.txt
 
-    (changes untracked)
-
+      Changes untracked:
         test3.txt
 
-    └── sub1
-        (changes not staged)
-
+    └─ sub2 (clean)
+        └─ sub2_sub1
+          Changes to be commited:
             modified: test.txt
 
-        (changes untracked)
+          Changes not staged:
+            modified: test2.txt
+            deleted: test3.txt
 
-            test2.txt
+          Changes untracked:
+            test4.txt
 
-        └── sub1_sub1
-            (changes to be committed)
+    └─ sub1
+      Changes not staged:
+        modified: test.txt
 
-                deleted: test.txt
+      Changes untracked:
+        test2.txt
 
-        └── sub1_sub2 (clean)
-    └── sub2 (clean)
-        └── sub2_sub1
-            (changes to be commited)
+      └─ sub1_sub1
+        Changes to be committed:
+          deleted: test.txt
 
-                modified: test.txt
-
-            (changes not staged)
-
-                modified: test2.txt
-                deleted: test3.txt
-
-            (changes untracked)
-            
-                test4.txt
+      └─ sub1_sub2 (clean)
 ";
         assert_eq!(output_str, expected_output);
     }

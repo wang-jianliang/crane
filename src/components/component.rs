@@ -10,20 +10,22 @@ use crate::visitors::component_visitor::ComponentVisitor;
 use futures::future::try_join_all;
 use git2::Repository;
 use lazy_static::lazy_static;
-use parking_lot::{MappedMutexGuard, Mutex, MutexGuard};
+use parking_lot::{
+    MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard,
+};
 use rustpython_vm::{PyObjectRef, VirtualMachine};
 
 pub type ComponentID = usize;
 
 #[derive(Debug)]
 pub struct ComponentArena {
-    components: Mutex<Vec<Component>>,
+    components: RwLock<Vec<Component>>,
 }
 
 impl ComponentArena {
     pub fn new() -> Self {
         ComponentArena {
-            components: Mutex::new(Vec::<Component>::new()),
+            components: RwLock::new(Vec::<Component>::new()),
         }
     }
 
@@ -37,20 +39,34 @@ impl ComponentArena {
     pub fn add(&self, component: Component) -> usize {
         let mut lock = self
             .components
-            .try_lock_for(Duration::from_secs(10))
+            .try_write_for(Duration::from_secs(10))
             .expect("Failed to lock components");
         let id = lock.len();
         lock.push(component);
         id
     }
 
-    pub fn get(&self, id: usize) -> Option<MappedMutexGuard<Component>> {
+    pub fn get(&self, id: usize) -> Option<MappedRwLockReadGuard<Component>> {
         let lock = self
             .components
-            .try_lock_for(Duration::from_secs(10))
+            .try_read_for(Duration::from_secs(10))
             .expect("Failed to lock components");
         if id < lock.len() {
-            Some(MutexGuard::map(lock, |components| &mut components[id]))
+            Some(RwLockReadGuard::map(lock, |components| &components[id]))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_mut(&self, id: usize) -> Option<MappedRwLockWriteGuard<Component>> {
+        let lock = self
+            .components
+            .try_write_for(Duration::from_secs(10))
+            .expect("Failed to lock components");
+        if id < lock.len() {
+            Some(RwLockWriteGuard::map(lock, |components| {
+                &mut components[id]
+            }))
         } else {
             None
         }
@@ -139,7 +155,7 @@ impl Component {
     }
 }
 
-pub trait ComponentImpl: std::fmt::Debug + Send {
+pub trait ComponentImpl: std::fmt::Debug + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
@@ -205,7 +221,7 @@ where
         let d = abs_root_dir.clone();
         let func = async move { visit_component(comp_id, visitor, &d).await };
         futures.push(func);
-        let mut comp = arena.get(comp_id).unwrap();
+        let mut comp = arena.get_mut(comp_id).unwrap();
         comp.target_dir = abs_root_dir.join(comp.target_dir.clone());
 
         for child_id in comp.children.iter() {
