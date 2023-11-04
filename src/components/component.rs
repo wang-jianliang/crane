@@ -204,7 +204,9 @@ where
         let d = abs_root_dir.clone();
         let func = async move { visit_component(comp_id, visitor, &d).await };
         futures.push(func);
-        let comp = arena.get(comp_id).unwrap();
+        let mut comp = arena.get(comp_id).unwrap();
+        comp.target_dir = abs_root_dir.join(comp.target_dir.clone());
+
         for child_id in comp.children.iter() {
             queue.push_back(*child_id);
         }
