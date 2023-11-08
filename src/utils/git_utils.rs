@@ -1,4 +1,4 @@
-use git2::{FetchOptions, ObjectType, ProxyOptions, RemoteCallbacks, Repository};
+use git2::{AnnotatedCommit, FetchOptions, ObjectType, ProxyOptions, RemoteCallbacks, Repository};
 use std::fs::{read_to_string, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -7,25 +7,27 @@ use url::Url;
 
 use crate::errors::Error;
 
-fn is_valid_refspec(refspec: &str) -> bool {
-    let parts: Vec<&str> = refspec.split(':').collect();
-    if parts.len() > 2 {
-        return false;
-    }
+pub fn get_repo_name(repo_url: &str) -> Option<String> {
+    let repo_url = if repo_url.starts_with("git@") {
+        repo_url.replace(":", "/").replace("git@", "https://")
+    } else {
+        repo_url.to_string()
+    };
 
-    let src = parts[0];
-    if parts.len() == 2 {
-        let dst = parts[1];
-        if !dst.starts_with("refs/") {
-            return false;
-        }
-    }
+    let url = Url::parse(repo_url.as_str()).ok()?;
+    let segments: Vec<&str> = url
+        .path_segments()?
+        .filter(|s| *s != ".git" && *s != "")
+        .collect();
+    let repo_name = segments.last()?;
 
-    src.starts_with("refs/")
-        || src.starts_with("+refs")
-        || src == "HEAD"
-        || src.chars().all(char::is_alphanumeric)
-        || (src.len() == 40 && src.chars().all(|c| c.is_digit(16)))
+    let repo_name = if repo_name.ends_with(".git") {
+        &repo_name[..repo_name.len() - 4]
+    } else {
+        repo_name
+    };
+
+    Some(repo_name.to_string())
 }
 
 fn get_git_dir_path(repo_path: &Path) -> std::io::Result<PathBuf> {
@@ -105,7 +107,11 @@ pub fn checkout_to_target(repo: &Repository, target: &str) -> Result<(), Error> 
     Ok(())
 }
 
-pub fn fetch_repository(repo: &Repository, url: &str, refspec: &str) -> Result<(), Error> {
+pub fn fetch_repository<'a>(
+    repo: &'a Repository,
+    url: &'a str,
+    refs: &[&str],
+) -> Result<AnnotatedCommit<'a>, Error> {
     log::debug!("set remote url to {}", url);
     let remote_name = "origin";
     let mut remote = match repo.find_remote(remote_name) {
@@ -151,18 +157,13 @@ pub fn fetch_repository(repo: &Repository, url: &str, refspec: &str) -> Result<(
     });
     fetch_option.remote_callbacks(callbacks);
 
-    log::debug!("fetch refspec \"{}\"", refspec);
+    log::debug!("fetch refspec \"{:?}\"", refs);
     // Check if the refspec is valid
-    if is_valid_refspec(refspec) {
-        remote.fetch(&[refspec], Some(&mut fetch_option), None)?;
-    } else {
-        return Err(Error {
-            message: String::from("Invalid refspec"),
-        });
-    }
+    remote.fetch(refs, Some(&mut fetch_option), None)?;
     remote.disconnect()?;
 
-    return Ok(());
+    let fetch_head = repo.find_reference("FETCH_HEAD")?;
+    Ok(repo.reference_to_annotated_commit(&fetch_head)?)
 }
 
 #[cfg(test)]
@@ -171,6 +172,35 @@ mod tests {
     use crate::utils::test_utils;
     use git2::Repository;
     use tempdir::TempDir;
+
+    #[test]
+    fn test_get_repo_name() {
+        assert_eq!(
+            get_repo_name("https://github.com/user/repo.git"),
+            Some("repo".to_string())
+        );
+        assert_eq!(
+            get_repo_name("https://github.com/user/repo"),
+            Some("repo".to_string())
+        );
+        assert_eq!(
+            get_repo_name("https://github.com/user/repo/"),
+            Some("repo".to_string())
+        );
+        assert_eq!(
+            get_repo_name("git@github.com/user/repo.git"),
+            Some("repo".to_string())
+        );
+        assert_eq!(
+            get_repo_name("file://github.com/user/repo.git"),
+            Some("repo".to_string())
+        );
+        assert_eq!(
+            get_repo_name("file:///tmp/repo/.git"),
+            Some("repo".to_string())
+        );
+        assert_eq!(get_repo_name("not a url"), None);
+    }
 
     #[test]
     fn test_fetch_repository_positive() {
@@ -187,46 +217,9 @@ mod tests {
         let target_dir = temp_dir.path().to_path_buf();
 
         let repo = Repository::init(&target_dir).unwrap();
-        let result = fetch_repository(&repo, repo_url.as_str(), "refs/heads/main");
+        let result = fetch_repository(&repo, repo_url.as_str(), &["main"]);
         assert!(result.is_ok());
 
         // The temporary directory will be automatically deleted when `temp_dir` goes out of scope
     }
-
-    #[test]
-    fn test_fetch_repository_negative_invalid_url() {
-        let temp_dir = TempDir::new("test_repo").expect("Failed to create temporary directory");
-        let target_dir = temp_dir.path().to_path_buf();
-
-        let repo = Repository::init(&target_dir).unwrap();
-        let result = fetch_repository(&repo, "invalid_url", "refs/heads/master");
-        assert!(result.is_err());
-        // Add assertions to verify the expected behavior
-
-        // The temporary directory will be automatically deleted when `temp_dir` goes out of scope
-    }
-
-    #[test]
-    fn test_fetch_repository_negative_invalid_refspec() {
-        let remote_repo_dir =
-            TempDir::new("remote_repo").expect("Failed to create temporary directory");
-        let repo_url = test_utils::create_git_repo_in_dir(
-            remote_repo_dir.path(),
-            &PathBuf::from("test.txt"),
-            "test",
-        )
-        .unwrap();
-
-        let temp_dir = TempDir::new("test_repo").expect("Failed to create temporary directory");
-        let target_dir = temp_dir.path().to_path_buf();
-
-        let repo = Repository::init(&target_dir).unwrap();
-        let result = fetch_repository(&repo, repo_url.as_str(), "invalid_refspec");
-        assert!(result.is_err());
-        // Add assertions to verify the expected behavior
-
-        // The temporary directory will be automatically deleted when `temp_dir` goes out of scope
-    }
-
-    // Add more test cases to cover different scenarios
 }

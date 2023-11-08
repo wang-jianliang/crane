@@ -153,9 +153,33 @@ async fn show_status(root_dir: &PathBuf, mut output: impl std::io::Write) -> Res
     log::debug!("show status in {:?}", root_dir);
     writeln!(output, "")?;
 
+    let repo = Repository::open(root_dir)?;
+    let url = match repo.find_remote("origin") {
+        Ok(remote) => remote.url().map_or_else(
+            || {
+                log::warn!("The remote url for current repository is not set");
+                String::new()
+            },
+            |u| u.to_string(),
+        ),
+        Err(err) => {
+            log::warn!("{}", err);
+            String::new()
+        }
+    };
+
+    let head = repo.head()?;
+    let branch = head.shorthand().map(|b| b.to_string());
+    let commit = head.target().map(|c| c.to_string());
+
+    let abs_root_dir = std::fs::canonicalize(root_dir)
+        .unwrap_or_else(|_| panic!("Failed to get absolute path of {:?}", root_dir));
     let root_id = visit_root_solution(
         &StatusVisitor::new(),
-        root_dir,
+        &abs_root_dir,
+        url,
+        branch,
+        commit,
         Some(CRANE_FILE.to_string()),
     )
     .await?;
