@@ -25,10 +25,7 @@ malachite-bigint = { version = "=0.1.0" }
 malachite-q = "=0.3.2"
 malachite-base = "=0.3.2"
 rustpython = "0.3.0"
-test-log = "0.2.13"
 colored = "2.0.4"
-assert_cmd = "2.0.12"
-predicates = "3.0.4"
 
 [dependencies.async-std]
 version = "1.6"
@@ -36,3 +33,6 @@ features = ["attributes"]
 
 [dev-dependencies]
 assert_fs = "1.0.13"
+assert_cmd = "2.0.12"
+predicates = "3.0.4"
+test-log = "0.2.13"
