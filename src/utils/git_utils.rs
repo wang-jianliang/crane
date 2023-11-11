@@ -107,13 +107,32 @@ pub fn checkout_to_target(repo: &Repository, target: &str) -> Result<(), Error> 
     Ok(())
 }
 
+pub fn get_remote_default_branch(url: &str, remote_name: Option<&str>) -> Option<String> {
+    let temp_dir = env::temp_dir();
+    let temp_repo_path = temp_dir.join("repo");
+    let repo = Repository::init_bare(temp_repo_path.to_str().unwrap()).ok()?;
+
+    let remote = match repo.find_remote(remote_name.unwrap_or("origin")) {
+        Ok(r) => r,
+        Err(_) => match repo.remote(remote_name?, url) {
+            Ok(remote) => remote,
+            Err(_) => return None,
+        },
+    };
+    match remote.default_branch() {
+        Ok(branch) => Some(String::from_utf8(branch.to_vec()).unwrap()),
+        Err(_) => None,
+    }
+}
+
 pub fn fetch_repository<'a>(
     repo: &'a Repository,
     url: &'a str,
     refs: &[&str],
+    remote_name: Option<&str>,
 ) -> Result<AnnotatedCommit<'a>, Error> {
     log::debug!("set remote url to {}", url);
-    let remote_name = "origin";
+    let remote_name = remote_name.unwrap_or("origin");
     let mut remote = match repo.find_remote(remote_name) {
         Ok(r) => r,
         Err(_) => match repo.remote(remote_name, url) {
@@ -217,7 +236,7 @@ mod tests {
         let target_dir = temp_dir.path().to_path_buf();
 
         let repo = Repository::init(&target_dir).unwrap();
-        let result = fetch_repository(&repo, repo_url.as_str(), &["main"]);
+        let result = fetch_repository(&repo, repo_url.as_str(), &["main"], Some("origin"));
         assert!(result.is_ok());
 
         // The temporary directory will be automatically deleted when `temp_dir` goes out of scope

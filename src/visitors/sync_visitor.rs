@@ -13,6 +13,7 @@ pub fn fetch_with_alternate<'a>(
     repo: &'a Repository,
     refs: &[&str],
     remote_url: &'a str,
+    remote_name: Option<&str>,
 ) -> Result<AnnotatedCommit<'a>, Error> {
     // Set up global cache
     log::debug!(
@@ -24,11 +25,11 @@ pub fn fetch_with_alternate<'a>(
         .join(string_to_base64(&remote_url.to_string()));
     log::debug!("create cache repository");
     let cache_repo = open_or_create_repo(&cache_dir)?;
-    fetch_repository(&cache_repo, &remote_url, refs)?;
+    fetch_repository(&cache_repo, &remote_url, refs, remote_name)?;
 
     // The objects will be fetched from object database of cache repository
     add_alternate(&repo.workdir().unwrap(), &cache_dir.join(".git"))?;
-    let fetch_head = fetch_repository(&repo, &remote_url, refs)?;
+    let fetch_head = fetch_repository(&repo, &remote_url, refs, remote_name)?;
     Ok(fetch_head)
 }
 
@@ -60,7 +61,7 @@ impl ComponentVisitor for ComponentSyncVisitor {
 
         if let Some(branch) = &git.branch {
             let refname = format!("refs/for/{}", branch);
-            fetch_head = fetch_with_alternate(&repo, &[branch], &url)?;
+            fetch_head = fetch_with_alternate(&repo, &[branch], &url, Some("origin"))?;
             let msg = format!("Setting {} to {}", branch, fetch_head.id());
             match repo.find_reference(&refname) {
                 Ok(mut r) => {
@@ -78,7 +79,7 @@ impl ComponentVisitor for ComponentSyncVisitor {
             repo.set_head(&refname)?;
         } else if let Some(commit) = &git.commit {
             log::debug!("Set HEAD to {}", commit);
-            fetch_head = fetch_with_alternate(&repo, &[&commit], &url)?;
+            fetch_head = fetch_with_alternate(&repo, &[&commit], &url, Some("origin"))?;
             repo.set_head(&commit)?;
         } else {
             return Err(Error {
