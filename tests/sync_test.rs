@@ -1,11 +1,12 @@
 mod tests {
     use assert_cmd::prelude::*;
     use assert_fs::{prelude::*, TempDir};
+    use git2::Repository;
     use predicates::prelude::*;
     use std::{path::PathBuf, process::Command};
     use test_log::test;
 
-    use crane::utils::test_utils;
+    use crane::utils::{fs::copy_dir_to, test_utils};
 
     #[test(tokio::test)]
     async fn test_sync_simple_with_url_and_without_dir() -> Result<(), Box<dyn std::error::Error>> {
@@ -160,6 +161,66 @@ mod tests {
         cmd.arg("sync").arg(target_dir);
 
         cmd.current_dir(workdir)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains(format!(
+                "Sync solution to {}",
+                workdir.path().join(target_dir).display()
+            )));
+
+        workdir.child(target_dir).assert(predicate::path::exists());
+        workdir
+            .child(target_dir)
+            .child("README.2.md")
+            .assert(predicate::path::exists());
+        workdir
+            .child(target_dir)
+            .child(".git")
+            .assert(predicate::path::exists());
+
+        Ok(())
+    }
+
+    #[test(tokio::test)]
+    async fn test_sync_simple_without_url_and_without_dir() -> Result<(), Box<dyn std::error::Error>>
+    {
+        // Create a source repository with 1 commit
+        let source_repo_dir = TempDir::new()?;
+        let _ = test_utils::create_git_repo_in_dir(
+            &source_repo_dir.path(),
+            &PathBuf::from("README.md"),
+            "test",
+        )
+        .unwrap();
+
+        let workdir = &TempDir::new()?;
+        let target_dir = "test_sync_simple_without_url_and_without_dir";
+
+        // Copy source repo to target_dir
+        copy_dir_to(&source_repo_dir.path(), &workdir.join(target_dir))?;
+
+        // Set remote url
+        let repo = Repository::open(&workdir.join(target_dir))?;
+        repo.remote(
+            "origin",
+            format!("file://{}/.git", source_repo_dir.path().display()).as_str(),
+        )?;
+
+        // Add another commit to source repository
+        test_utils::modify_file_in_repo(
+            &source_repo_dir,
+            &PathBuf::from("README.2.md"),
+            "test",
+            true,
+            true,
+            true,
+        )?;
+
+        // Sync again without a url
+        let mut cmd = Command::cargo_bin("crane")?;
+        cmd.arg("sync");
+
+        cmd.current_dir(&workdir.join(target_dir))
             .assert()
             .success()
             .stdout(predicate::str::contains(format!(

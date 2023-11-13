@@ -49,30 +49,6 @@ async fn do_sync(
                 });
             }
         }
-        (None, Some(dir)) => {
-            abs_root_dir = env::current_dir()?.join(dir);
-            let repo = Repository::open(&abs_root_dir)?;
-            url_str = repo
-                .find_remote("origin")?
-                .url()
-                .ok_or(Error {
-                    message: "Remote url is not set".to_string(),
-                })?
-                .to_string();
-
-            // If the target_branch is None, we try to find it from the repository in root_dir
-            target_branch = target_branch.or_else(|| {
-                let dir = root_dir.clone().unwrap();
-                let abs_root_dir = env::current_dir().ok()?.join(dir);
-                let repo = Repository::open(&abs_root_dir).ok()?;
-                let head = repo.head().ok()?;
-                let b = head.shorthand().map(|b| b.to_string());
-
-                // If the target_branch can not be found, we try to set the head commit
-                target_commit = head.target().map(|c| c.to_string());
-                b
-            });
-        }
         (Some(u), None) => {
             let repo_name = git_utils::get_repo_name(&u).ok_or(Error {
                 message: format!("Failed to get repo name from url {}", u),
@@ -84,10 +60,33 @@ async fn do_sync(
                 Some(remote_name),
             ));
         }
-        (None, None) => {
-            return Err(Error {
-                message: "Ether the url or an exsit repository directory should be provided"
-                    .to_string(),
+        (None, _) => {
+            match root_dir {
+                Some(dir) => {
+                    abs_root_dir = env::current_dir()?.join(dir);
+                }
+                None => {
+                    abs_root_dir = env::current_dir()?;
+                }
+            }
+            let repo = Repository::open(&abs_root_dir)?;
+            url_str = repo
+                .find_remote("origin")?
+                .url()
+                .ok_or(Error {
+                    message: "Remote url is not set".to_string(),
+                })?
+                .to_string();
+
+            // If the target_branch is None, we try to find it from the repository in root_dir
+            target_branch = target_branch.or_else(|| {
+                let repo = Repository::open(&abs_root_dir).ok()?;
+                let head = repo.head().ok()?;
+                let b = head.shorthand().map(|b| b.to_string());
+
+                // If the target_branch can not be found, we try to set the head commit
+                target_commit = head.target().map(|c| c.to_string());
+                b
             });
         }
     }

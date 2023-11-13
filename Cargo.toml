@@ -26,6 +26,8 @@ malachite-q = "=0.3.2"
 malachite-base = "=0.3.2"
 rustpython = "0.3.0"
 colored = "2.0.4"
+walkdir = "2.4.0"
+tempfile = "3.8.1"
 
 [dependencies.async-std]
 version = "1.6"
