@@ -32,6 +32,8 @@ async fn do_sync(
 ) -> Result<(), Error> {
     let url_str;
     let abs_root_dir;
+    let mut target_branch = branch;
+    let mut target_commit = commit;
 
     // url: parse root_dir from url
     // root_dir: get url from root_dir
@@ -57,6 +59,19 @@ async fn do_sync(
                     message: "Remote url is not set".to_string(),
                 })?
                 .to_string();
+
+            // If the target_branch is None, we try to find it from the repository in root_dir
+            target_branch = target_branch.or_else(|| {
+                let dir = root_dir.clone().unwrap();
+                let abs_root_dir = env::current_dir().ok()?.join(dir);
+                let repo = Repository::open(&abs_root_dir).ok()?;
+                let head = repo.head().ok()?;
+                let b = head.shorthand().map(|b| b.to_string());
+
+                // If the target_branch can not be found, we try to set the head commit
+                target_commit = head.target().map(|c| c.to_string());
+                b
+            });
         }
         (Some(u), None) => {
             let repo_name = git_utils::get_repo_name(&u).ok_or(Error {
@@ -64,6 +79,10 @@ async fn do_sync(
             })?;
             abs_root_dir = env::current_dir()?.join(repo_name);
             url_str = u.clone();
+            target_branch = target_branch.or(git_utils::get_remote_default_branch(
+                &url.unwrap(),
+                Some(remote_name),
+            ));
         }
         (None, None) => {
             return Err(Error {
@@ -73,34 +92,6 @@ async fn do_sync(
         }
     }
 
-    // We find the branch in following steps:
-    // 1. Read from branch argument directly
-    // 2. Get from the root_dir
-    // 3. Get from remote
-    let branch = match branch {
-        Some(b) => Some(b),
-        None if root_dir.is_some() => {
-            let dir = root_dir.clone().unwrap();
-            let abs_root_dir = env::current_dir()?.join(dir);
-            let repo = Repository::open(&abs_root_dir)?;
-            let head = repo.head()?;
-            head.shorthand().map(|b| b.to_string())
-        }
-        None if url.is_some() => {
-            git_utils::get_remote_default_branch(&url.unwrap(), Some(remote_name))
-        }
-        None => None,
-    };
-
-    let commit = if branch.is_none() && root_dir.is_some() {
-        let abs_root_dir = env::current_dir()?.join(root_dir.clone().unwrap());
-        let repo = Repository::open(&abs_root_dir)?;
-        let head = repo.head()?;
-        head.target().map(|c| c.to_string())
-    } else {
-        None
-    };
-
     println!("Sync solution to {}", abs_root_dir.display());
 
     let visitor = ComponentSyncVisitor::new();
@@ -108,8 +99,8 @@ async fn do_sync(
         &visitor,
         &abs_root_dir,
         url_str.to_string(),
-        branch,
-        commit,
+        target_branch,
+        target_commit,
         Some(CRANE_FILE.to_string()),
     )
     .await?;
