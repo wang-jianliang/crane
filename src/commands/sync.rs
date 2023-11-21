@@ -32,8 +32,17 @@ async fn do_sync(
 ) -> Result<(), Error> {
     let url_str;
     let abs_root_dir;
-    let mut target_branch = branch;
-    let mut target_commit = commit;
+    let mut target_branch = branch.clone();
+    let mut target_commit = commit.clone();
+
+    log::debug!(
+        "do sync: url: {:?} branch: {:?} commit: {:?} root_dir: {:?} remote_name: {:?}",
+        url,
+        branch,
+        commit,
+        root_dir,
+        remote_name
+    );
 
     // url: parse root_dir from url
     // root_dir: get url from root_dir
@@ -85,7 +94,9 @@ async fn do_sync(
                 let b = head.shorthand().map(|b| b.to_string());
 
                 // If the target_branch can not be found, we try to set the head commit
-                target_commit = head.target().map(|c| c.to_string());
+                if b.is_none() {
+                    target_commit = commit.or(head.target().map(|c| c.to_string()));
+                }
                 b
             });
         }

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::components::component::{ComponentArena, ComponentID};
 use crate::components::git_dependency::GitDependency;
 use crate::errors::Error;
-use crate::utils::git_utils::{add_alternate, fetch_repository, open_or_create_repo};
+use crate::utils::git_utils::{self, add_alternate, fetch_repository, open_or_create_repo};
 use crate::utils::{cache::ensure_cache_dir, encode::string_to_base64};
 use crate::visitors::component_visitor::ComponentVisitor;
 use async_trait::async_trait;
@@ -62,24 +62,27 @@ impl ComponentVisitor for ComponentSyncVisitor {
         if let Some(branch) = &git.branch {
             let refname = format!("refs/for/{}", branch);
             fetch_head = fetch_with_alternate(&repo, &[branch], &url, Some("origin"))?;
-            let msg = format!("Setting {} to {}", branch, fetch_head.id());
-            match repo.find_reference(&refname) {
-                Ok(mut r) => {
-                    if let Some(commit) = &git.commit {
-                        // TODO: check if the commit exists on the branch
-                        r.set_target(Oid::from_str(&commit)?, &msg)?;
-                    } else {
-                        r.set_target(fetch_head.id(), &msg)?;
-                    }
-                    r
-                }
+            let mut msg = format!("Setting {} to {}", branch, fetch_head.id());
+
+            let mut reference = match repo.find_reference(&refname) {
+                Ok(r) => r,
                 Err(_) => repo.reference(&refname, fetch_head.id(), true, &msg)?,
             };
-
+            if let Some(commit) = &git.commit {
+                // TODO: check if the commit exists on the branch
+                msg = format!("Setting {} to certain commit {}", branch, commit);
+                reference.set_target(Oid::from_str(&commit)?, &msg)?;
+                git_utils::checkout_to_target(&repo, &commit)?;
+            } else {
+                reference.set_target(fetch_head.id(), &msg)?;
+                git_utils::checkout_to_target(&repo, &fetch_head.id().to_string())?;
+            }
+            log::debug!("{}", msg);
             repo.set_head(&refname)?;
         } else if let Some(commit) = &git.commit {
             log::debug!("Set HEAD to {}", commit);
-            fetch_head = fetch_with_alternate(&repo, &[&commit], &url, Some("origin"))?;
+            fetch_with_alternate(&repo, &[&commit], &url, Some("origin"))?;
+            git_utils::checkout_to_target(&repo, &commit)?;
             repo.set_head(&commit)?;
         } else {
             return Err(Error {
@@ -88,8 +91,11 @@ impl ComponentVisitor for ComponentSyncVisitor {
         }
 
         log::debug!("visit git component: {}", name);
-        log::debug!("checkout to {}", fetch_head.id());
-        repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
+        log::debug!(
+            "checkout to {}",
+            repo.head()?.target().map(|o| o.to_string()).unwrap()
+        );
+        // repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
 
         Ok(())
     }

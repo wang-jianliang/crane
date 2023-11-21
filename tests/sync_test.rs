@@ -241,6 +241,84 @@ mod tests {
         Ok(())
     }
 
+    #[test(tokio::test)]
+    async fn test_sync_with_commit_id() -> Result<(), Box<dyn std::error::Error>> {
+        // Create a source repository with 1 commit
+        let source_repo_dir = TempDir::new()?;
+        let _ = test_utils::create_git_repo_in_dir(
+            &source_repo_dir.path(),
+            &PathBuf::from("README.md"),
+            "test",
+        )
+        .unwrap();
+
+        let workdir = &TempDir::new()?;
+        let target_dir = "test_sync_simple_without_url_and_without_dir";
+
+        // Copy source repo to target_dir
+        copy_dir_to(&source_repo_dir.path(), &workdir.join(target_dir))?;
+
+        // Set remote url
+        let target_repo = Repository::open(&workdir.join(target_dir))?;
+        target_repo.remote(
+            "origin",
+            format!("file://{}/.git", source_repo_dir.path().display()).as_str(),
+        )?;
+
+        // Add 2nd commit to source repository
+        test_utils::modify_file_in_repo(
+            &source_repo_dir,
+            &PathBuf::from("README.2.md"),
+            "test",
+            true,
+            true,
+            true,
+        )?;
+        // Get the head commit in source repo
+        let source_repo = Repository::open(&source_repo_dir)?;
+        let source_head = source_repo.head()?;
+        let source_commit = source_head.target().unwrap();
+
+        // Add another commit to source repository
+        test_utils::modify_file_in_repo(
+            &source_repo_dir,
+            &PathBuf::from("README.3.md"),
+            "test",
+            true,
+            true,
+            true,
+        )?;
+
+        // Sync to a commit
+        let mut cmd = Command::cargo_bin("crane")?;
+        cmd.arg("sync")
+            .arg("--commit")
+            .arg(&source_commit.to_string());
+
+        cmd.current_dir(&workdir.join(target_dir))
+            .assert()
+            .success()
+            .stdout(predicate::str::contains(format!(
+                "Sync solution to {}",
+                workdir.path().join(target_dir).display()
+            )));
+
+        workdir.child(target_dir).assert(predicate::path::exists());
+        workdir
+            .child(target_dir)
+            .child("README.2.md")
+            .assert(predicate::path::exists());
+        workdir
+            .child(target_dir)
+            .child("README.3.md")
+            .assert(predicate::path::missing());
+
+        let target_head = target_repo.head()?;
+        assert_eq!(source_commit, target_head.target().unwrap());
+
+        Ok(())
+    }
+
     #[test]
     fn test_sync_nested_repositories() {
         // main
