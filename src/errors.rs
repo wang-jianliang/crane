@@ -50,3 +50,11 @@ impl From<git2::Error> for Error {
         }
     }
 }
+
+impl From<anyhow::Error> for Error {
+    fn from(value: anyhow::Error) -> Self {
+        Error {
+            message: format!("{}", value),
+        }
+    }
+}

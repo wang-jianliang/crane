@@ -320,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sync_nested_repositories() {
+    fn test_sync_nested_repositories() -> Result<(), Box<dyn std::error::Error>> {
         // main
         //  |-sub1
         //    |-sub1_sub1
@@ -332,8 +332,8 @@ mod tests {
         let sub1_repo_dir = TempDir::new().expect(err_msg);
         let sub1_sub1_repo_dir = TempDir::new().expect(err_msg);
         let sub1_sub2_repo_dir = TempDir::new().expect(err_msg);
-        let _sub2_repo_dir = TempDir::new().expect(err_msg);
-        let _sub2_sub1_repo_dir = TempDir::new().expect(err_msg);
+        let sub2_repo_dir = TempDir::new().expect(err_msg);
+        let sub2_sub1_repo_dir = TempDir::new().expect(err_msg);
 
         // Create repositories
         let sub1_sub1_repo = test_utils::create_git_repo_in_dir(
@@ -353,7 +353,7 @@ mod tests {
             sub1_repo_dir.path(),
             &PathBuf::from(".crane"),
             &format!(
-                r#"{{ \
+                r#"deps = {{ \
                 "sub1_sub1": {{"type": "solution", "url": "{}", "branch": "main"}}, \
                 "sub1_sub2": {{"type": "solution", "url": "{}", "branch": "main"}} \
             }}"#,
@@ -362,15 +362,73 @@ mod tests {
         )
         .unwrap();
 
+        let sub2_sub1_repo = test_utils::create_git_repo_in_dir(
+            sub2_sub1_repo_dir.path(),
+            &PathBuf::from("README.md"),
+            "sub2 sub1",
+        )
+        .unwrap();
+
+        let sub2_repo = test_utils::create_git_repo_in_dir(
+            sub2_repo_dir.path(),
+            &PathBuf::from(".crane"),
+            &format!(
+                r#"deps = {{ \
+                "sub2_sub1": {{"type": "solution", "url": "{}", "branch": "main"}}, \
+            }}"#,
+                sub2_sub1_repo
+            ),
+        )
+        .unwrap();
+
         test_utils::create_git_repo_in_dir(
             main_repo_dir.path(),
             &PathBuf::from(".crane"),
             &format!(
-                r#"{{"sub1": {{"type": "solution", "url": "{}", "branch": "main"}} }}"#,
-                sub1_repo
+                r#"deps = {{ \
+                    "sub1": {{"type": "solution", "url": "{}", "branch": "main", "deps_file": ".crane" }}, \
+                    "sub2": {{"type": "solution", "url": "{}", "branch": "main", "deps_file": ".crane" }} \
+                }}"#,
+                sub1_repo, sub2_repo
             ),
         )
         .unwrap();
         // TODO: implement the test logic
+
+        let workdir = &TempDir::new()?;
+        let target_dir = "test_sync_nested_repositories";
+        // Sync to a commit
+        let mut cmd = Command::cargo_bin("crane")?;
+        cmd.arg("sync")
+            .arg("--url")
+            .arg(format!("file://{}/.git", main_repo_dir.path().display()))
+            .arg(target_dir)
+            .arg("--branch")
+            .arg("main");
+
+        cmd.current_dir(&workdir)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains(format!(
+                "Sync solution to {}",
+                workdir.path().join(target_dir).display()
+            )));
+
+        let expected_sub1_repo_dir = workdir.child(&target_dir).child("sub1");
+        expected_sub1_repo_dir.assert(predicate::path::exists());
+        let expected_sub1_sub1_repo_dir = expected_sub1_repo_dir.child("sub1_sub1");
+        expected_sub1_sub1_repo_dir.assert(predicate::path::exists());
+        expected_sub1_sub1_repo_dir
+            .child("README.md")
+            .assert(predicate::path::exists());
+
+        let expected_sub2_repo_dir = workdir.child(&target_dir).child("sub2");
+        expected_sub2_repo_dir.assert(predicate::path::exists());
+        expected_sub2_repo_dir
+            .child("sub2_sub1")
+            .child("README.md")
+            .assert(predicate::path::exists());
+
+        Ok(())
     }
 }

@@ -21,7 +21,7 @@ pub trait ComponentVisitor: std::marker::Copy + std::marker::Sync {
         self.visit_git(id, root_dir).await?;
 
         // Handle deps if necessary
-        let deps_file;
+        let deps_file: Option<String>;
         {
             let comp = ComponentArena::instance().get(id).unwrap();
             let solution = match comp.impl_.as_any().downcast_ref::<GitDependency>() {
@@ -35,8 +35,16 @@ pub trait ComponentVisitor: std::marker::Copy + std::marker::Sync {
                     })
                 }
             };
-            deps_file = solution.deps_file.clone();
+            deps_file = solution
+                .deps_file
+                .clone()
+                .filter(|f| root_dir.join(f).exists());
         }
+        log::debug!(
+            "visit solution with deps in {} with deps_file {:?}",
+            root_dir.display(),
+            deps_file
+        );
 
         if let Some(deps_file) = &deps_file {
             log::debug!("visit deps of solution {} in {}", id, deps_file);

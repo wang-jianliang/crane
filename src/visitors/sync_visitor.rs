@@ -95,7 +95,6 @@ impl ComponentVisitor for ComponentSyncVisitor {
             "checkout to {}",
             repo.head()?.target().map(|o| o.to_string()).unwrap()
         );
-        // repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
 
         Ok(())
     }

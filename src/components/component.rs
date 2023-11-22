@@ -243,9 +243,6 @@ pub async fn visit_root_solution<V>(
 where
     V: ComponentVisitor,
 {
-    let root_dir_clone = root_dir.clone();
-    let deps_file = deps_file.filter(|f| root_dir_clone.join(f).exists());
-
     let comp = Component {
         name: String::from("(main)"),
         type_: ComponentType::Solution,
